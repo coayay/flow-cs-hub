@@ -210,20 +210,6 @@ body {
 .btn:hover { background: var(--hover); }
 .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
 .btn.primary:hover { background: #0d9488; }
-/* 챗봇 플로팅 (Phase B 예약) */
-.chatbot-btn {
-  position: fixed; right: 24px; bottom: 24px;
-  width: 60px; height: 60px; border-radius: 50%;
-  background: var(--accent); color: white;
-  border: none; font-size: 24px; cursor: pointer;
-  box-shadow: 0 6px 20px rgba(15,118,110,0.3);
-  z-index: 20; opacity: 0.6;
-}
-.chatbot-btn::after {
-  content: "Phase B"; position: absolute; top: -8px; right: -12px;
-  background: var(--sand); color: white; font-size: 9px;
-  padding: 2px 6px; border-radius: 10px; font-weight: 700;
-}
 /* 로그인 오버레이 */
 .auth-overlay {
   position: fixed; inset: 0; z-index: 1000;
@@ -376,10 +362,6 @@ body {
     max-height: 60vh;
   }
 
-  .chatbot-btn {
-    right: 16px; bottom: 16px;
-    width: 52px; height: 52px; font-size: 20px;
-  }
 
   .detail { padding: 18px; }
   .detail dl { grid-template-columns: 90px 1fr; gap: 6px 12px; font-size: 13px; }
@@ -739,8 +721,6 @@ function renderDetail() {
       <dl>${rows}</dl>
       <div class="actions">
         <button class="btn" onclick="copyItem('${item.id}')">📋 복사</button>
-        <button class="btn" onclick="window.print()">🖨 인쇄</button>
-        <button class="btn primary" disabled title="Phase B에서 활성화">💬 챗봇에 물어보기</button>
       </div>
     </div>
   `;
