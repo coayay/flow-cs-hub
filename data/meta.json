@@ -1,0 +1,57 @@
+{
+  "app_name": "Flow CS Hub",
+  "version": "0.1.0-mockup",
+  "last_updated": "2026-06-13",
+  "campuses": [
+    "광교",
+    "수내",
+    "수지",
+    "영통",
+    "이매"
+  ],
+  "counts": {
+    "contacts": 33,
+    "tuition": 66,
+    "admin": 49,
+    "total": 148
+  },
+  "categories": [
+    {
+      "key": "contacts",
+      "label": "캠퍼스 정보",
+      "icon": "🏢"
+    },
+    {
+      "key": "tuition",
+      "label": "수강료 (26년)",
+      "icon": "💰"
+    },
+    {
+      "key": "admin",
+      "label": "행정 매뉴얼",
+      "icon": "📖"
+    }
+  ],
+  "admin_subcategories": [
+    "ACA 시스템",
+    "교육청",
+    "교재 관리",
+    "기타 업무",
+    "비즈메카 기안",
+    "상담실 등록",
+    "수강료(아카)",
+    "수납/환불",
+    "수업 운영",
+    "아카(ACA2000) 개요",
+    "입학테스트(아카)",
+    "학생 관리(아카)",
+    "할인 규정"
+  ],
+  "tuition_subcategories": [
+    "고등 수아",
+    "고등사스",
+    "중등 사스",
+    "중등 수아 / 특목",
+    "초등 수아"
+  ]
+}

@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow CS Hub · CS 직원 전용</title>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #1e3a5f;
+  --primary-light: #2c5282;
+  --accent: #0f766e;
+  --sand: #d9b66f;
+  --bg: #f7f4ee;
+  --paper: #ffffff;
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --hover: #f0ede5;
+  --active: #dcf1ed;
+  --shadow: 0 4px 12px rgba(31,41,55,0.06);
+}
+body {
+  font-family: "Malgun Gothic", "Apple SD Gothic Neo", -apple-system, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.5;
+}
+/* 상단 헤더 */
+.header {
+  position: sticky; top: 0; z-index: 10;
+  background: white;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 20px;
+  box-shadow: var(--shadow);
+}
+.logo {
+  font-size: 18px; font-weight: 800; color: var(--primary);
+  cursor: pointer; white-space: nowrap;
+}
+.logo span { color: var(--accent); }
+.search-wrap {
+  flex: 1; max-width: 600px; position: relative;
+}
+.search-input {
+  width: 100%; padding: 10px 16px 10px 40px;
+  border: 1px solid var(--line); border-radius: 999px;
+  font-size: 14px; background: #fafafa;
+  transition: all 0.15s;
+}
+.search-input:focus {
+  outline: none; border-color: var(--accent);
+  background: white; box-shadow: 0 0 0 3px rgba(15,118,110,0.1);
+}
+.search-icon {
+  position: absolute; left: 14px; top: 50%;
+  transform: translateY(-50%); color: var(--muted);
+}
+.header-actions { display: flex; gap: 10px; color: var(--muted); }
+/* 레이아웃 */
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: calc(100vh - 60px);
+}
+/* 사이드바 */
+.sidebar {
+  background: white;
+  border-right: 1px solid var(--line);
+  padding: 20px 0;
+  overflow-y: auto;
+  position: sticky; top: 60px; height: calc(100vh - 60px);
+}
+.sidebar-section {
+  margin-bottom: 20px;
+}
+.sidebar-title {
+  padding: 8px 20px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.1em;
+  color: var(--muted); text-transform: uppercase;
+}
+.sidebar-item {
+  padding: 8px 20px; cursor: pointer;
+  color: var(--ink); font-size: 14px;
+  display: flex; align-items: center; gap: 8px;
+  border-left: 3px solid transparent;
+  transition: all 0.1s;
+}
+.sidebar-item:hover { background: var(--hover); }
+.sidebar-item.active {
+  background: var(--active); color: var(--accent);
+  font-weight: 700; border-left-color: var(--accent);
+}
+.sidebar-item.sub {
+  padding-left: 40px; font-size: 13px; color: var(--muted);
+}
+.sidebar-item.sub.active { color: var(--accent); font-weight: 700; }
+.sidebar-count {
+  margin-left: auto; font-size: 11px;
+  color: var(--muted); background: #f0f0f0;
+  padding: 2px 8px; border-radius: 10px;
+}
+/* 메인 */
+.main {
+  padding: 24px 32px;
+  overflow-y: auto;
+}
+.breadcrumb {
+  color: var(--muted); font-size: 12px; margin-bottom: 12px;
+}
+.breadcrumb span { margin: 0 6px; }
+.page-title {
+  font-size: 22px; font-weight: 800; margin-bottom: 4px;
+}
+.page-sub {
+  color: var(--muted); font-size: 13px; margin-bottom: 24px;
+}
+/* 홈 대시보드 */
+.hero {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white; padding: 32px; border-radius: 16px;
+  margin-bottom: 24px;
+}
+.hero h1 { font-size: 26px; margin-bottom: 8px; }
+.hero p { opacity: 0.85; font-size: 14px; }
+.dash-cards {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 16px; margin-bottom: 32px;
+}
+.dash-card {
+  background: white; border: 1px solid var(--line);
+  border-radius: 14px; padding: 24px;
+  cursor: pointer; transition: all 0.15s;
+}
+.dash-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--accent); }
+.dash-card .icon { font-size: 32px; margin-bottom: 8px; }
+.dash-card h3 { font-size: 16px; margin-bottom: 4px; }
+.dash-card .count { color: var(--accent); font-weight: 700; font-size: 24px; }
+.dash-card .desc { color: var(--muted); font-size: 12px; margin-top: 4px; }
+/* 아이템 그리드 */
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.card {
+  background: white; border: 1px solid var(--line);
+  border-radius: 10px; padding: 16px;
+  transition: all 0.15s; cursor: pointer;
+}
+.card:hover { box-shadow: var(--shadow); border-color: var(--accent); }
+.card-tag {
+  display: inline-block;
+  background: var(--active); color: var(--accent);
+  font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 10px;
+  margin-bottom: 8px; letter-spacing: 0.05em;
+}
+.card-title {
+  font-size: 15px; font-weight: 700; margin-bottom: 8px;
+}
+.card-body { font-size: 13px; color: #374151; }
+.card-body dt { color: var(--muted); font-size: 11px; margin-top: 6px; }
+.card-body dd { margin-bottom: 4px; font-weight: 500; }
+.card-body .price { font-size: 18px; font-weight: 800; color: var(--primary); }
+.card-body .price-old { text-decoration: line-through; color: var(--muted); font-size: 12px; }
+.card-body .price-up { color: #d97706; font-size: 12px; font-weight: 700; }
+/* 검색 결과 */
+.search-results {
+  max-height: 400px; overflow-y: auto;
+  position: absolute; top: 44px; left: 0; right: 0;
+  background: white; border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 8px; display: none; z-index: 100;
+}
+.search-results.open { display: block; }
+.search-group-title {
+  padding: 8px 12px; font-size: 11px; font-weight: 800;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em;
+}
+.search-item {
+  padding: 8px 12px; cursor: pointer; border-radius: 6px;
+  font-size: 13px;
+}
+.search-item:hover { background: var(--hover); }
+.search-item mark { background: #fef3c7; color: inherit; padding: 0 2px; }
+.search-empty { padding: 20px; text-align: center; color: var(--muted); font-size: 13px; }
+/* 상세 뷰어 */
+.detail {
+  background: white; border-radius: 12px; padding: 24px;
+  border: 1px solid var(--line);
+}
+.detail h2 { font-size: 20px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--line); }
+.detail dl { display: grid; grid-template-columns: 120px 1fr; gap: 8px 20px; }
+.detail dt { color: var(--muted); font-weight: 700; }
+.detail dd { color: var(--ink); }
+.detail .actions {
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line);
+  display: flex; gap: 8px;
+}
+.btn {
+  padding: 8px 16px; border: 1px solid var(--line);
+  background: white; border-radius: 8px; cursor: pointer;
+  font-size: 13px; color: var(--ink);
+}
+.btn:hover { background: var(--hover); }
+.btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn.primary:hover { background: #0d9488; }
+/* 챗봇 플로팅 (Phase B 예약) */
+.chatbot-btn {
+  position: fixed; right: 24px; bottom: 24px;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: var(--accent); color: white;
+  border: none; font-size: 24px; cursor: pointer;
+  box-shadow: 0 6px 20px rgba(15,118,110,0.3);
+  z-index: 20; opacity: 0.6;
+}
+.chatbot-btn::after {
+  content: "Phase B"; position: absolute; top: -8px; right: -12px;
+  background: var(--sand); color: white; font-size: 9px;
+  padding: 2px 6px; border-radius: 10px; font-weight: 700;
+}
+/* 로그인 오버레이 */
+.auth-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: linear-gradient(135deg, #1e3a5f 0%, #0f766e 100%);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.auth-card {
+  background: white; border-radius: 16px;
+  padding: 40px 32px; width: 100%; max-width: 380px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  text-align: center;
+}
+.auth-card .brand {
+  font-size: 22px; font-weight: 800;
+  color: var(--primary); margin-bottom: 4px;
+}
+.auth-card .brand span { color: var(--accent); }
+.auth-card .sub {
+  color: var(--muted); font-size: 12px; margin-bottom: 24px;
+}
+.auth-card .icon {
+  font-size: 36px; margin-bottom: 12px;
+}
+.auth-card h2 {
+  font-size: 16px; margin-bottom: 6px; color: var(--ink);
+}
+.auth-card p {
+  font-size: 12px; color: var(--muted); margin-bottom: 20px;
+}
+.auth-input {
+  width: 100%; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 15px; text-align: center;
+  letter-spacing: 0.15em;
+  margin-bottom: 12px;
+}
+.auth-input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15,118,110,0.12);
+}
+.auth-btn {
+  width: 100%; padding: 12px;
+  background: var(--accent); color: white;
+  border: none; border-radius: 10px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: background 0.15s;
+}
+.auth-btn:hover { background: #0d9488; }
+.auth-error {
+  color: #dc2626; font-size: 12px;
+  margin-top: 8px; min-height: 16px;
+}
+.auth-note {
+  margin-top: 20px; padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--muted);
+  line-height: 1.6;
+}
+/* 로그아웃 버튼 */
+.logout-btn {
+  background: transparent; border: 1px solid var(--line);
+  border-radius: 6px; padding: 4px 10px;
+  font-size: 12px; cursor: pointer; color: var(--muted);
+}
+.logout-btn:hover { background: var(--hover); color: var(--ink); }
+
+/* 필터 바 */
+.filter-bar {
+  display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.filter-chip {
+  padding: 6px 12px; background: white; border: 1px solid var(--line);
+  border-radius: 20px; font-size: 12px; cursor: pointer;
+}
+.filter-chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+.filter-chip:hover:not(.active) { background: var(--hover); }
+
+/* 햄버거 버튼 (데스크탑에서는 숨김) */
+.hamburger {
+  display: none;
+  width: 36px; height: 36px;
+  align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--line);
+  border-radius: 8px; cursor: pointer;
+  font-size: 18px;
+}
+.hamburger:hover { background: var(--hover); }
+/* 백드롭 */
+.backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 15;
+}
+.backdrop.show { display: block; }
+/* 사이드바 닫기 버튼 (모바일 전용) */
+.sidebar-close {
+  display: none;
+  position: absolute; top: 12px; right: 12px;
+  width: 32px; height: 32px;
+  background: transparent; border: none; border-radius: 6px;
+  cursor: pointer; font-size: 20px; color: var(--muted);
+}
+.sidebar-close:hover { background: var(--hover); }
+
+/* ==================== 모바일 반응형 ==================== */
+@media (max-width: 768px) {
+  .header {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .hamburger { display: inline-flex; }
+  .logo { font-size: 16px; }
+  .search-input {
+    padding: 8px 14px 8px 36px;
+    font-size: 13px;
+  }
+  .search-input::placeholder { font-size: 12px; }
+  .search-icon { left: 12px; }
+  .header-actions { display: none; }
+
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0; left: -280px;
+    width: 260px; height: 100vh;
+    z-index: 20;
+    transition: left 0.25s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+    padding-top: 60px;
+  }
+  .sidebar.mobile-open { left: 0; }
+  .sidebar-close { display: block; }
+
+  .main { padding: 16px; }
+  .hero { padding: 22px 18px; border-radius: 12px; }
+  .hero h1 { font-size: 20px; }
+  .hero p { font-size: 12px; }
+  .dash-cards { grid-template-columns: 1fr; gap: 10px; }
+  .dash-card { padding: 18px; }
+  .grid { grid-template-columns: 1fr; gap: 10px; }
+
+  .page-title { font-size: 18px; }
+  .search-results {
+    position: fixed;
+    top: 60px; left: 8px; right: 8px;
+    max-height: 60vh;
+  }
+
+  .chatbot-btn {
+    right: 16px; bottom: 16px;
+    width: 52px; height: 52px; font-size: 20px;
+  }
+
+  .detail { padding: 18px; }
+  .detail dl { grid-template-columns: 90px 1fr; gap: 6px 12px; font-size: 13px; }
+}
+</style>
+</head>
+<body>
+
+<!-- 로그인 오버레이 -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <div class="icon">🔒</div>
+    <div class="brand">Flow <span>CS Hub</span></div>
+    <div class="sub">CS 직원 전용 · 수학의아침</div>
+    <h2>접근 비밀번호</h2>
+    <p>CS 상담 정보 열람을 위한 인증이 필요합니다</p>
+    <input type="password" class="auth-input" id="authInput"
+           placeholder="비밀번호"
+           onkeydown="if(event.key==='Enter') tryLogin()">
+    <button class="auth-btn" onclick="tryLogin()">입장</button>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-note">
+      · 인증 후 24시간 유지<br>
+      · 문의: 송재풍 팀장
+    </div>
+  </div>
+</div>
+
+<!-- 상단 헤더 -->
+<header class="header">
+  <button class="hamburger" onclick="toggleSidebar()" aria-label="메뉴 열기">☰</button>
+  <div class="logo" onclick="goHome()">Flow <span>CS Hub</span></div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="search-input" id="searchInput"
+           placeholder="캠퍼스명, 관, 전화번호, 매뉴얼 등 무엇이든 검색 (Ctrl+K)"
+           oninput="onSearch(event)" onblur="setTimeout(hideSearchResults, 200)">
+    <div class="search-results" id="searchResults"></div>
+  </div>
+  <div class="header-actions">
+    <span title="공용 ID (송재풍 팀장 관리)">👤 공용</span>
+    <button class="logout-btn" onclick="logout()" title="24시간 세션 만료 · 재로그인 필요">🔓 로그아웃</button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- 사이드바 (메뉴 엘리베이터) -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" onclick="closeSidebar()" aria-label="메뉴 닫기">✕</button>
+  </aside>
+
+  <!-- 메인 콘텐츠 -->
+  <main class="main" id="main"></main>
+</div>
+
+<!-- 백드롭 (모바일 사이드바 배경) -->
+<div class="backdrop" id="backdrop" onclick="closeSidebar()"></div>
+
+<!-- 챗봇 플로팅 (Phase B 예약) -->
+<button class="chatbot-btn" title="Phase B에서 활성화됨">💬</button>
+
+<script>
+// ==================== 인증 (로컬 SHA-256) ====================
+// 비밀번호 변경 방법: 브라우저 콘솔에서 아래 실행 후 결과값을 PASSWORD_HASH에 붙여넣기
+//   const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('새비밀번호'));
+//   console.log(Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join(''));
+const PASSWORD_HASH = "7332e620a481d71585079b619a41b6a0b327e8ef319d35aa9366ba0bbb02fb73"; // 평문 미기재. 이 해시의 원래 값은 유출된 것으로 간주한다 — 배포 전 반드시 교체할 것 (260915 보안조치)
+const SESSION_KEY = "flow_cs_hub_auth";
+const SESSION_MAX_MS = 24 * 60 * 60 * 1000; // 24시간
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function isSessionValid() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const { ts } = JSON.parse(raw);
+    return (Date.now() - ts) < SESSION_MAX_MS;
+  } catch { return false; }
+}
+async function tryLogin() {
+  const input = document.getElementById('authInput');
+  const err = document.getElementById('authError');
+  const pw = input.value.trim();
+  if (!pw) { err.textContent = "비밀번호를 입력하세요"; return; }
+  const hash = await sha256Hex(pw);
+  if (hash === PASSWORD_HASH) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ ts: Date.now() }));
+    document.getElementById('authOverlay').style.display = 'none';
+    loadData();
+  } else {
+    err.textContent = "비밀번호가 일치하지 않습니다";
+    input.value = ''; input.focus();
+  }
+}
+function logout() {
+  if (!confirm('로그아웃 하시겠습니까? 재접속 시 비밀번호 필요.')) return;
+  localStorage.removeItem(SESSION_KEY);
+  location.reload();
+}
+function initAuth() {
+  const overlay = document.getElementById('authOverlay');
+  if (isSessionValid()) {
+    overlay.style.display = 'none';
+    loadData();
+  } else {
+    overlay.style.display = 'flex';
+    setTimeout(() => document.getElementById('authInput').focus(), 100);
+  }
+}
+
+// ==================== 데이터 로드 ====================
+let DATA = { contacts: [], tuition: [], admin: [], meta: null };
+let FUSE = null;  // Fuse.js 인스턴스 (전체 검색)
+
+/* 한글 초성 추출 (예: "광교 초등관" → "ㄱㄱ ㅊㄷㄱ") */
+const CHOSUNG = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+function toChosung(s) {
+  if (!s) return '';
+  return String(s).split('').map(ch => {
+    const code = ch.charCodeAt(0) - 0xAC00;
+    if (code >= 0 && code <= 11171) return CHOSUNG[Math.floor(code / 588)];
+    return ch;
+  }).join('');
+}
+function isChosungQuery(q) {
+  // 쿼리에 자모 문자만 있으면 초성 검색으로 판단
+  return /^[ㄱ-ㅎ\s]+$/.test(q);
+}
+
+async function loadData() {
+  const [c, t, a, m] = await Promise.all([
+    fetch('data/contacts.json').then(r => r.json()),
+    fetch('data/tuition.json').then(r => r.json()),
+    fetch('data/admin.json').then(r => r.json()),
+    fetch('data/meta.json').then(r => r.json()),
+  ]);
+  DATA.contacts = c; DATA.tuition = t; DATA.admin = a; DATA.meta = m;
+
+  // 초성 필드 자동 추가
+  const all = [...c, ...t, ...a];
+  all.forEach(item => {
+    item.chosung_text = toChosung(item.search_text || '') + ' ' + toChosung(item.title || '');
+  });
+
+  // Fuse.js 인스턴스 (오타 허용 + 다중 필드)
+  FUSE = new Fuse(all, {
+    keys: [
+      { name: 'title',        weight: 3 },
+      { name: 'search_text',  weight: 2 },
+      { name: 'tags',         weight: 1.5 },
+      { name: 'chosung_text', weight: 1 },
+    ],
+    threshold: 0.35,      // 0(엄격) ~ 1(관대). 오타 허용도
+    ignoreLocation: true, // 문장 위치 무관
+    minMatchCharLength: 1,
+    includeScore: true,
+  });
+
+  renderSidebar();
+  renderRoute();
+}
+
+// ==================== 라우팅 ====================
+// URL 해시: #/category/subcategory/detail-id
+let CURRENT = { page: 'home', category: null, subcategory: null, itemId: null };
+
+function goHome() { location.hash = ''; closeSidebar(); }
+function goCategory(cat, sub) {
+  location.hash = sub ? `#/${cat}/${encodeURIComponent(sub)}` : `#/${cat}`;
+  closeSidebar();
+}
+function goDetail(id) {
+  location.hash = `#/detail/${id}`;
+  closeSidebar();
+}
+/* 모바일 사이드바 토글 */
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('backdrop');
+  const open = sb.classList.toggle('mobile-open');
+  bd.classList.toggle('show', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+function closeSidebar() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('backdrop');
+  sb.classList.remove('mobile-open');
+  bd.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function parseHash() {
+  const h = location.hash.replace(/^#\/?/, '');
+  if (!h) return { page: 'home' };
+  const parts = h.split('/').map(decodeURIComponent);
+  if (parts[0] === 'detail') return { page: 'detail', itemId: parts[1] };
+  return {
+    page: 'category',
+    category: parts[0],
+    subcategory: parts[1] || null,
+  };
+}
+
+function renderRoute() {
+  CURRENT = parseHash();
+  renderSidebar(); // active 상태 갱신
+  if (CURRENT.page === 'home') renderHome();
+  else if (CURRENT.page === 'category') renderCategory();
+  else if (CURRENT.page === 'detail') renderDetail();
+}
+window.addEventListener('hashchange', renderRoute);
+
+// ==================== 사이드바 ====================
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (!DATA.meta) return;
+  const active = (cat, sub=null) =>
+    CURRENT.category === cat && (sub === null || CURRENT.subcategory === sub) ? 'active' : '';
+  const isHomeActive = CURRENT.page === 'home' ? 'active' : '';
+
+  // 캠퍼스별 그룹핑
+  const campusCounts = {};
+  DATA.contacts.forEach(x => { if (x.campus) campusCounts[x.campus] = (campusCounts[x.campus]||0) + 1; });
+
+  // 수강료 서브카테고리
+  const tuitionSubs = DATA.meta.tuition_subcategories;
+  const tuitionCounts = {};
+  DATA.tuition.forEach(x => tuitionCounts[x.subcategory] = (tuitionCounts[x.subcategory]||0) + 1);
+
+  // 매뉴얼 서브카테고리
+  const adminSubs = DATA.meta.admin_subcategories;
+  const adminCounts = {};
+  DATA.admin.forEach(x => adminCounts[x.subcategory] = (adminCounts[x.subcategory]||0) + 1);
+
+  sb.innerHTML = `
+    <button class="sidebar-close" onclick="closeSidebar()" aria-label="메뉴 닫기">✕</button>
+    <div class="sidebar-section">
+      <div class="sidebar-item ${isHomeActive}" onclick="goHome()">📍 홈</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">🏢 캠퍼스 정보</div>
+      <div class="sidebar-item ${active('contacts', null) || (CURRENT.category==='contacts' && !CURRENT.subcategory ? 'active' : '')}"
+           onclick="goCategory('contacts')">전체 <span class="sidebar-count">${DATA.contacts.length}</span></div>
+      ${DATA.meta.campuses.map(c => `
+        <div class="sidebar-item sub ${active('contacts', c)}" onclick="goCategory('contacts','${c}')">
+          · ${c} <span class="sidebar-count">${campusCounts[c]||0}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">💰 수강료 (26년)</div>
+      <div class="sidebar-item ${CURRENT.category==='tuition' && !CURRENT.subcategory ? 'active' : ''}"
+           onclick="goCategory('tuition')">전체 <span class="sidebar-count">${DATA.tuition.length}</span></div>
+      ${tuitionSubs.map(s => `
+        <div class="sidebar-item sub ${active('tuition', s)}" onclick="goCategory('tuition','${s}')">
+          · ${s} <span class="sidebar-count">${tuitionCounts[s]||0}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">📖 행정 매뉴얼</div>
+      <div class="sidebar-item ${CURRENT.category==='admin' && !CURRENT.subcategory ? 'active' : ''}"
+           onclick="goCategory('admin')">전체 <span class="sidebar-count">${DATA.admin.length}</span></div>
+      ${adminSubs.map(s => `
+        <div class="sidebar-item sub ${active('admin', s)}" onclick="goCategory('admin','${s}')">
+          · ${s.replace('- ','')} <span class="sidebar-count">${adminCounts[s]||0}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ==================== 홈 대시보드 ====================
+function renderHome() {
+  const m = document.getElementById('main');
+  m.innerHTML = `
+    <div class="hero">
+      <h1>Flow CS Hub</h1>
+      <p>수학의아침 CS 직원 통합 상담 지원 플랫폼 · 매뉴얼과 챗봇을 한 곳에서 · 5개 캠퍼스 · 총 ${DATA.meta.counts.total}건</p>
+    </div>
+    <div class="dash-cards">
+      ${DATA.meta.categories.map(c => `
+        <div class="dash-card" onclick="goCategory('${c.key}')">
+          <div class="icon">${c.icon}</div>
+          <h3>${c.label}</h3>
+          <div class="count">${DATA.meta.counts[c.key]}건</div>
+          <div class="desc">클릭하여 탐색</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <h3 style="margin: 24px 0 12px; font-size: 16px;">📌 빠른 접근</h3>
+    <div class="grid">
+      ${DATA.contacts.filter(x=>x.subcategory==='캠퍼스 대표').map(c => `
+        <div class="card" onclick="goDetail('${c.id}')">
+          <div class="card-tag">캠퍼스 대표</div>
+          <div class="card-title">${c.title}</div>
+          <div class="card-body">📞 ${c.content.대표번호 || '-'}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ==================== 카테고리 페이지 ====================
+function renderCategory() {
+  const m = document.getElementById('main');
+  const cat = CURRENT.category;
+  const sub = CURRENT.subcategory;
+  const catInfo = DATA.meta.categories.find(c => c.key === cat);
+  const items = DATA[cat] || [];
+
+  let filtered = items;
+  if (sub) {
+    if (cat === 'contacts') filtered = items.filter(x => x.campus === sub);
+    else filtered = items.filter(x => x.subcategory === sub);
+  }
+
+  const breadcrumb = `
+    <div class="breadcrumb">
+      <span onclick="goHome()" style="cursor:pointer">홈</span> ›
+      <span onclick="goCategory('${cat}')" style="cursor:pointer">${catInfo.label}</span>
+      ${sub ? ` › <span>${sub}</span>` : ''}
+    </div>
+  `;
+
+  m.innerHTML = `
+    ${breadcrumb}
+    <h1 class="page-title">${catInfo.icon} ${sub || catInfo.label}</h1>
+    <div class="page-sub">${filtered.length}건</div>
+    <div class="grid">
+      ${filtered.map(item => renderCard(item)).join('')}
+    </div>
+  `;
+}
+
+function renderCard(item) {
+  if (item.category === 'contacts') {
+    return `
+      <div class="card" onclick="goDetail('${item.id}')">
+        <div class="card-tag">${item.campus} · ${item.subcategory}</div>
+        <div class="card-title">${item.title}</div>
+        <div class="card-body">
+          <dt>직통</dt><dd>${item.content.직통번호 || '-'}</dd>
+          ${item.content.위치 ? `<dt>위치</dt><dd>${item.content.위치}</dd>` : ''}
+        </div>
+      </div>
+    `;
+  }
+  if (item.category === 'tuition') {
+    const c = item.content;
+    const up = c.인상액 > 0 ? `<span class="price-up">↑ ${c.인상액.toLocaleString()}</span>`
+             : c.인상액 < 0 ? `<span style="color:#059669;font-size:12px;font-weight:700;">↓ ${Math.abs(c.인상액).toLocaleString()}</span>`
+             : '';
+    return `
+      <div class="card" onclick="goDetail('${item.id}')">
+        <div class="card-tag">${item.subcategory}</div>
+        <div class="card-title">${item.title}</div>
+        <div class="card-body">
+          <div class="price">${(c['26년_수강료']||0).toLocaleString()}원 ${up}</div>
+          ${c['25년_수강료'] && c.인상액 ? `<div class="price-old">25년 ${c['25년_수강료'].toLocaleString()}원</div>` : ''}
+          ${c.비고 ? `<dt>비고</dt><dd style="font-size:12px;">${c.비고}</dd>` : ''}
+        </div>
+      </div>
+    `;
+  }
+  if (item.category === 'admin') {
+    const preview = item.content.본문.substring(0, 100) + (item.content.본문.length > 100 ? '...' : '');
+    return `
+      <div class="card" onclick="goDetail('${item.id}')">
+        <div class="card-tag">${item.subcategory}</div>
+        <div class="card-title">${item.title}</div>
+        <div class="card-body" style="font-size:12px;color:var(--muted);">${preview}</div>
+      </div>
+    `;
+  }
+  return '';
+}
+
+// ==================== 상세 뷰어 ====================
+function renderDetail() {
+  const m = document.getElementById('main');
+  const all = [...DATA.contacts, ...DATA.tuition, ...DATA.admin];
+  const item = all.find(x => x.id === CURRENT.itemId);
+  if (!item) {
+    m.innerHTML = `<div>항목을 찾을 수 없습니다.</div>`;
+    return;
+  }
+  const catInfo = DATA.meta.categories.find(c => c.key === item.category);
+  const rows = Object.entries(item.content).filter(([k,v]) => v).map(([k,v]) => `
+    <dt>${k}</dt>
+    <dd>${typeof v === 'number' ? v.toLocaleString() + (k.includes('수강료') || k.includes('인상액') ? '원' : '') : v}</dd>
+  `).join('');
+
+  m.innerHTML = `
+    <div class="breadcrumb">
+      <span onclick="goHome()" style="cursor:pointer">홈</span> ›
+      <span onclick="goCategory('${item.category}')" style="cursor:pointer">${catInfo.label}</span> ›
+      <span>${item.title}</span>
+    </div>
+    <div class="detail">
+      <h2>${item.title}</h2>
+      <dl>${rows}</dl>
+      <div class="actions">
+        <button class="btn" onclick="copyItem('${item.id}')">📋 복사</button>
+        <button class="btn" onclick="window.print()">🖨 인쇄</button>
+        <button class="btn primary" disabled title="Phase B에서 활성화">💬 챗봇에 물어보기</button>
+      </div>
+    </div>
+  `;
+}
+
+function copyItem(id) {
+  const all = [...DATA.contacts, ...DATA.tuition, ...DATA.admin];
+  const item = all.find(x => x.id === id);
+  if (!item) return;
+  const text = `${item.title}\n` + Object.entries(item.content)
+    .filter(([k,v]) => v)
+    .map(([k,v]) => `${k}: ${v}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => alert('복사됨'));
+}
+
+// ==================== 검색 (Fuse.js + 초성 지원) ====================
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function highlightText(text, query) {
+  if (!text || !query) return text || '';
+  try {
+    const re = new RegExp(escapeRegex(query), 'gi');
+    return text.replace(re, m => `<mark>${m}</mark>`);
+  } catch { return text; }
+}
+
+function onSearch(e) {
+  const raw = e.target.value.trim();
+  const box = document.getElementById('searchResults');
+  if (!raw || !FUSE) { box.classList.remove('open'); return; }
+
+  // 초성 쿼리 판별해 검색어 변환
+  const chosungMode = isChosungQuery(raw);
+  const query = raw; // Fuse에 그대로 전달 (다중 필드 매칭)
+
+  const hits = FUSE.search(query, { limit: 40 });
+  const results = hits.map(h => h.item);
+
+  if (results.length === 0) {
+    box.innerHTML = `<div class="search-empty">검색 결과 없음<br><span style="font-size:11px;color:var(--muted);">오타·초성(ㄱㄱ ㅊㄷ)도 지원합니다</span></div>`;
+    box.classList.add('open'); return;
+  }
+
+  // 그룹핑
+  const grouped = { contacts: [], tuition: [], admin: [] };
+  results.forEach(r => grouped[r.category].push(r));
+  const catLabel = { contacts: '🏢 캠퍼스 정보', tuition: '💰 수강료', admin: '📖 매뉴얼' };
+
+  box.innerHTML = Object.entries(grouped).filter(([k,v]) => v.length).map(([k,v]) => `
+    <div class="search-group-title">${catLabel[k]} (${v.length}건)</div>
+    ${v.slice(0, 8).map(item => {
+      const title = chosungMode ? item.title : highlightText(item.title, raw);
+      return `<div class="search-item" onclick="goDetail('${item.id}'); hideSearchResults();">
+        ${title}
+        <span style="color:var(--muted); font-size:11px; margin-left:6px;">
+          ${item.campus || item.subcategory || ''}
+        </span>
+      </div>`;
+    }).join('')}
+  `).join('') + `<div style="padding:8px 12px; font-size:11px; color:var(--muted); border-top:1px solid var(--line);">
+    총 ${results.length}건 · Enter로 전체 결과 · 오타/초성(ㄱㄱ) 지원
+  </div>`;
+  box.classList.add('open');
+}
+function hideSearchResults() {
+  document.getElementById('searchResults').classList.remove('open');
+}
+// Ctrl+K 단축키
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+  if (e.key === 'Escape') hideSearchResults();
+});
+
+// ==================== 시작 ====================
+initAuth();
+</script>
+</body>
+</html>
