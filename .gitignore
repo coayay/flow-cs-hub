@@ -10,3 +10,5 @@ Thumbs.db
 # 원천 자료 (배포 대상 아님 - 내부에만 보관)
 build_data.py
 설계문서.md
+mockup.html
+배포_안내.md
