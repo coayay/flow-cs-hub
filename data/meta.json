@@ -1,7 +1,7 @@
 {
   "app_name": "Flow CS Hub",
-  "version": "0.1.0-mockup",
-  "last_updated": "2026-06-13",
+  "version": "0.2.0",
+  "last_updated": "2026-09-17",
   "campuses": [
     "광교",
     "수내",
@@ -13,7 +13,8 @@
     "contacts": 33,
     "tuition": 66,
     "admin": 49,
-    "total": 148
+    "parent_response": 16,
+    "total": 164
   },
   "categories": [
     {
@@ -30,6 +31,11 @@
       "key": "admin",
       "label": "행정 매뉴얼",
       "icon": "📖"
+    },
+    {
+      "key": "parent_response",
+      "label": "학부모 응대 매뉴얼",
+      "icon": "💬"
     }
   ],
   "admin_subcategories": [
@@ -53,5 +59,9 @@
     "중등 사스",
     "중등 수아 / 특목",
     "초등 수아"
+  ],
+  "parent_response_subcategories": [
+    "기본 응대 절차",
+    "상황별 응대 매뉴얼"
   ]
 }

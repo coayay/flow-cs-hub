@@ -129,7 +129,7 @@ body {
 .hero h1 { font-size: 26px; margin-bottom: 8px; }
 .hero p { opacity: 0.85; font-size: 14px; }
 .dash-cards {
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px; margin-bottom: 32px;
 }
 .dash-card {
@@ -288,6 +288,67 @@ body {
 .filter-chip.active { background: var(--accent); color: white; border-color: var(--accent); }
 .filter-chip:hover:not(.active) { background: var(--hover); }
 
+/* ==================== 마크다운 렌더링 ==================== */
+.md-body { line-height: 1.7; color: #374151; }
+.md-body .md-h2 {
+  font-size: 18px; font-weight: 800;
+  color: var(--primary);
+  margin: 20px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--line);
+}
+.md-body .md-h3 {
+  font-size: 15px; font-weight: 700;
+  color: var(--ink);
+  margin: 16px 0 8px;
+}
+.md-body .md-ul {
+  padding-left: 22px;
+  margin: 8px 0;
+}
+.md-body .md-ul li {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.md-body .md-p {
+  margin: 10px 0;
+  font-size: 14px;
+}
+.md-body strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ==================== 학부모 응대: 권장 / 금지 블록 ==================== */
+.response-block {
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin: 14px 0;
+  border-left: 4px solid;
+}
+.response-block.ok {
+  background: #ecfdf5;
+  border-color: #10b981;
+}
+.response-block.ng {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+.response-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.response-block.ok .response-label { color: #059669; }
+.response-block.ng .response-label { color: #dc2626; }
+.response-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #1f2937;
+  white-space: pre-wrap;
+}
+
 /* 햄버거 버튼 (데스크탑에서는 숨김) */
 .hamburger {
   display: none;
@@ -424,7 +485,7 @@ window.difyChatbotConfig = {
 
 <script>
 // ==================== 데이터 로드 ====================
-let DATA = { contacts: [], tuition: [], admin: [], meta: null };
+let DATA = { contacts: [], tuition: [], admin: [], parent_response: [], meta: null };
 let FUSE = null;  // Fuse.js 인스턴스 (전체 검색)
 
 /* 한글 초성 추출 (예: "광교 초등관" → "ㄱㄱ ㅊㄷㄱ") */
@@ -443,16 +504,18 @@ function isChosungQuery(q) {
 }
 
 async function loadData() {
-  const [c, t, a, m] = await Promise.all([
+  const [c, t, a, pr, m] = await Promise.all([
     fetch('data/contacts.json').then(r => r.json()),
     fetch('data/tuition.json').then(r => r.json()),
     fetch('data/admin.json').then(r => r.json()),
+    fetch('data/parent-response.json').then(r => r.json()).catch(() => []),
     fetch('data/meta.json').then(r => r.json()),
   ]);
-  DATA.contacts = c; DATA.tuition = t; DATA.admin = a; DATA.meta = m;
+  DATA.contacts = c; DATA.tuition = t; DATA.admin = a;
+  DATA.parent_response = pr; DATA.meta = m;
 
   // 초성 필드 자동 추가
-  const all = [...c, ...t, ...a];
+  const all = [...c, ...t, ...a, ...pr];
   all.forEach(item => {
     item.chosung_text = toChosung(item.search_text || '') + ' ' + toChosung(item.title || '');
   });
@@ -547,6 +610,11 @@ function renderSidebar() {
   const adminCounts = {};
   DATA.admin.forEach(x => adminCounts[x.subcategory] = (adminCounts[x.subcategory]||0) + 1);
 
+  // 학부모 응대 서브카테고리
+  const prSubs = DATA.meta.parent_response_subcategories || [];
+  const prCounts = {};
+  DATA.parent_response.forEach(x => prCounts[x.subcategory] = (prCounts[x.subcategory]||0) + 1);
+
   sb.innerHTML = `
     <button class="sidebar-close" onclick="closeSidebar()" aria-label="메뉴 닫기">✕</button>
     <div class="sidebar-section">
@@ -582,6 +650,17 @@ function renderSidebar() {
       ${adminSubs.map(s => `
         <div class="sidebar-item sub ${active('admin', s)}" onclick="goCategory('admin','${s}')">
           · ${s.replace('- ','')} <span class="sidebar-count">${adminCounts[s]||0}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">💬 학부모 응대 매뉴얼</div>
+      <div class="sidebar-item ${CURRENT.category==='parent_response' && !CURRENT.subcategory ? 'active' : ''}"
+           onclick="goCategory('parent_response')">전체 <span class="sidebar-count">${DATA.parent_response.length}</span></div>
+      ${prSubs.map(s => `
+        <div class="sidebar-item sub ${active('parent_response', s)}" onclick="goCategory('parent_response','${s}')">
+          · ${s} <span class="sidebar-count">${prCounts[s]||0}</span>
         </div>
       `).join('')}
     </div>
@@ -692,33 +771,103 @@ function renderCard(item) {
       </div>
     `;
   }
+  if (item.category === 'parent-response' || item.category === 'parent_response') {
+    // 두 종류: markdown(기본 응대 절차) 또는 recommended/avoid(상황별)
+    const c = item.content;
+    let preview = '';
+    if (c.markdown) {
+      preview = c.markdown.replace(/[#*\-\n]/g, ' ').substring(0, 100) + '...';
+    } else if (c.recommended) {
+      preview = '✅ ' + c.recommended.substring(0, 90).replace(/\n/g, ' ') + '...';
+    }
+    return `
+      <div class="card" onclick="goDetail('${item.id}')">
+        <div class="card-tag">${item.subcategory}</div>
+        <div class="card-title">${item.title}</div>
+        <div class="card-body" style="font-size:12px;color:var(--muted);">${preview}</div>
+      </div>
+    `;
+  }
   return '';
 }
 
 // ==================== 상세 뷰어 ====================
+function allItems() {
+  return [...DATA.contacts, ...DATA.tuition, ...DATA.admin, ...DATA.parent_response];
+}
+
+/* 간단 마크다운 렌더러 */
+function renderMarkdown(md) {
+  if (!md) return '';
+  const escape = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let out = escape(md);
+  // 헤딩
+  out = out.replace(/^## (.+)$/gm, '<h3 class="md-h3">$1</h3>');
+  out = out.replace(/^# (.+)$/gm, '<h2 class="md-h2">$1</h2>');
+  // 볼드
+  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // 리스트 (- 로 시작)
+  out = out.replace(/(?:^- .+(?:\n|$))+/gm, block => {
+    const items = block.trim().split('\n').map(l => l.replace(/^- /, '').trim());
+    return '<ul class="md-ul">' + items.map(i => `<li>${i}</li>`).join('') + '</ul>';
+  });
+  // 문단 (빈 줄로 구분)
+  out = out.split(/\n\n+/).map(p => {
+    if (p.match(/^<(h2|h3|ul)/)) return p;
+    return `<p class="md-p">${p.replace(/\n/g, '<br>')}</p>`;
+  }).join('');
+  return out;
+}
+
 function renderDetail() {
   const m = document.getElementById('main');
-  const all = [...DATA.contacts, ...DATA.tuition, ...DATA.admin];
-  const item = all.find(x => x.id === CURRENT.itemId);
+  const item = allItems().find(x => x.id === CURRENT.itemId);
   if (!item) {
     m.innerHTML = `<div>항목을 찾을 수 없습니다.</div>`;
     return;
   }
-  const catInfo = DATA.meta.categories.find(c => c.key === item.category);
-  const rows = Object.entries(item.content).filter(([k,v]) => v).map(([k,v]) => `
-    <dt>${k}</dt>
-    <dd>${typeof v === 'number' ? v.toLocaleString() + (k.includes('수강료') || k.includes('인상액') ? '원' : '') : v}</dd>
-  `).join('');
+  const catInfo = DATA.meta.categories.find(c => c.key === item.category || c.key === item.category.replace('-','_'));
+
+  let body = '';
+
+  // 학부모 응대 매뉴얼 (markdown 또는 recommended/avoid)
+  if (item.category === 'parent-response' || item.category === 'parent_response') {
+    const c = item.content;
+    if (c.markdown) {
+      body = `<div class="md-body">${renderMarkdown(c.markdown)}</div>`;
+    } else {
+      body = `
+        <div class="response-block ok">
+          <div class="response-label">✅ 권장 답변</div>
+          <div class="response-text">${escapeHtml(c.recommended || '').replace(/\n/g, '<br>')}</div>
+        </div>
+        <div class="response-block ng">
+          <div class="response-label">❌ 피해야 할 응대</div>
+          <div class="response-text">${escapeHtml(c.avoid || '').replace(/\n/g, '<br>')}</div>
+        </div>
+      `;
+    }
+  } else {
+    // 기존 contacts / tuition / admin
+    const rows = Object.entries(item.content).filter(([k,v]) => v).map(([k,v]) => `
+      <dt>${k}</dt>
+      <dd>${typeof v === 'number' ? v.toLocaleString() + (k.includes('수강료') || k.includes('인상액') ? '원' : '') : v}</dd>
+    `).join('');
+    body = `<dl>${rows}</dl>`;
+  }
+
+  const catLabel = catInfo ? catInfo.label : item.category;
+  const catKey = catInfo ? catInfo.key : item.category;
 
   m.innerHTML = `
     <div class="breadcrumb">
       <span onclick="goHome()" style="cursor:pointer">홈</span> ›
-      <span onclick="goCategory('${item.category}')" style="cursor:pointer">${catInfo.label}</span> ›
+      <span onclick="goCategory('${catKey}')" style="cursor:pointer">${catLabel}</span> ›
       <span>${item.title}</span>
     </div>
     <div class="detail">
       <h2>${item.title}</h2>
-      <dl>${rows}</dl>
+      ${body}
       <div class="actions">
         <button class="btn" onclick="copyItem('${item.id}')">📋 복사</button>
       </div>
@@ -726,13 +875,22 @@ function renderDetail() {
   `;
 }
 
+function escapeHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function copyItem(id) {
-  const all = [...DATA.contacts, ...DATA.tuition, ...DATA.admin];
-  const item = all.find(x => x.id === id);
+  const item = allItems().find(x => x.id === id);
   if (!item) return;
-  const text = `${item.title}\n` + Object.entries(item.content)
-    .filter(([k,v]) => v)
-    .map(([k,v]) => `${k}: ${v}`).join('\n');
+  let text = `${item.title}\n`;
+  const c = item.content;
+  if (c.markdown) {
+    text += c.markdown;
+  } else if (c.recommended || c.avoid) {
+    text += `\n[권장 답변]\n${c.recommended || ''}\n\n[피해야 할 응대]\n${c.avoid || ''}`;
+  } else {
+    text += Object.entries(c).filter(([k,v]) => v).map(([k,v]) => `${k}: ${v}`).join('\n');
+  }
   navigator.clipboard.writeText(text).then(() => alert('복사됨'));
 }
 
@@ -764,9 +922,17 @@ function onSearch(e) {
   }
 
   // 그룹핑
-  const grouped = { contacts: [], tuition: [], admin: [] };
-  results.forEach(r => grouped[r.category].push(r));
-  const catLabel = { contacts: '🏢 캠퍼스 정보', tuition: '💰 수강료', admin: '📖 매뉴얼' };
+  const grouped = { contacts: [], tuition: [], admin: [], parent_response: [] };
+  results.forEach(r => {
+    const k = (r.category || '').replace('-','_');
+    if (grouped[k]) grouped[k].push(r);
+  });
+  const catLabel = {
+    contacts: '🏢 캠퍼스 정보',
+    tuition: '💰 수강료',
+    admin: '📖 행정 매뉴얼',
+    parent_response: '💬 학부모 응대 매뉴얼'
+  };
 
   box.innerHTML = Object.entries(grouped).filter(([k,v]) => v.length).map(([k,v]) => `
     <div class="search-group-title">${catLabel[k]} (${v.length}건)</div>
