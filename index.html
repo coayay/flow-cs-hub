@@ -417,8 +417,28 @@ body {
 <!-- 백드롭 (모바일 사이드바 배경) -->
 <div class="backdrop" id="backdrop" onclick="closeSidebar()"></div>
 
-<!-- 챗봇 플로팅 (Phase B 예약) -->
-<button class="chatbot-btn" title="Phase B에서 활성화됨">💬</button>
+<!-- Dify 챗봇 임베드 (Phase B 활성화됨) -->
+<script>
+window.difyChatbotConfig = {
+  token: 'UV8J2RYyJkU7csgN',
+  baseUrl: 'https://udify.app',
+  inputs: {},
+  systemVariables: {},
+  userVariables: {}
+}
+</script>
+<script src="https://udify.app/embed.min.js" id="UV8J2RYyJkU7csgN" defer></script>
+<style>
+  #dify-chatbot-bubble-button {
+    background-color: #0f766e !important;
+    right: 24px !important;
+    bottom: 24px !important;
+  }
+  #dify-chatbot-bubble-window {
+    width: 26rem !important;
+    height: 42rem !important;
+  }
+</style>
 
 <script>
 // ==================== 데이터 로드 ====================
