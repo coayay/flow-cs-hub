@@ -485,7 +485,7 @@ window.difyChatbotConfig = {
 
 <script>
 // ==================== 데이터 로드 ====================
-let DATA = { contacts: [], tuition: [], admin: [], parent_response: [], cs_appreciation: [], meta: null };
+let DATA = { contacts: [], tuition: [], admin: [], parent_response: [], cs_appreciation: [], campus_guide: [], meta: null };
 let FUSE = null;  // Fuse.js 인스턴스 (전체 검색)
 
 /* 한글 초성 추출 (예: "광교 초등관" → "ㄱㄱ ㅊㄷㄱ") */
@@ -504,19 +504,20 @@ function isChosungQuery(q) {
 }
 
 async function loadData() {
-  const [c, t, a, pr, ca, m] = await Promise.all([
+  const [c, t, a, pr, ca, cg, m] = await Promise.all([
     fetch('data/contacts.json').then(r => r.json()),
     fetch('data/tuition.json').then(r => r.json()),
     fetch('data/admin.json').then(r => r.json()),
     fetch('data/parent-response.json').then(r => r.json()).catch(() => []),
     fetch('data/cs-appreciation.json').then(r => r.json()).catch(() => []),
+    fetch('data/campus-guide.json').then(r => r.json()).catch(() => []),
     fetch('data/meta.json').then(r => r.json()),
   ]);
   DATA.contacts = c; DATA.tuition = t; DATA.admin = a;
-  DATA.parent_response = pr; DATA.cs_appreciation = ca; DATA.meta = m;
+  DATA.parent_response = pr; DATA.cs_appreciation = ca; DATA.campus_guide = cg; DATA.meta = m;
 
   // 초성 필드 자동 추가
-  const all = [...c, ...t, ...a, ...pr, ...ca];
+  const all = [...c, ...t, ...a, ...pr, ...ca, ...cg];
   all.forEach(item => {
     item.chosung_text = toChosung(item.search_text || '') + ' ' + toChosung(item.title || '');
   });
@@ -621,6 +622,11 @@ function renderSidebar() {
   const caCounts = {};
   DATA.cs_appreciation.forEach(x => caCounts[x.subcategory] = (caCounts[x.subcategory]||0) + 1);
 
+  // 캠퍼스별 상담자료 서브카테고리
+  const cgSubs = DATA.meta.campus_guide_subcategories || [];
+  const cgCounts = {};
+  DATA.campus_guide.forEach(x => cgCounts[x.subcategory] = (cgCounts[x.subcategory]||0) + 1);
+
   sb.innerHTML = `
     <button class="sidebar-close" onclick="closeSidebar()" aria-label="메뉴 닫기">✕</button>
     <div class="sidebar-section">
@@ -678,6 +684,17 @@ function renderSidebar() {
       ${caSubs.map(s => `
         <div class="sidebar-item sub ${active('cs_appreciation', s)}" onclick="goCategory('cs_appreciation','${s}')">
           · ${s} <span class="sidebar-count">${caCounts[s]||0}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">🏫 캠퍼스별 상담자료</div>
+      <div class="sidebar-item ${CURRENT.category==='campus_guide' && !CURRENT.subcategory ? 'active' : ''}"
+           onclick="goCategory('campus_guide')">전체 <span class="sidebar-count">${DATA.campus_guide.length}</span></div>
+      ${cgSubs.map(s => `
+        <div class="sidebar-item sub ${active('campus_guide', s)}" onclick="goCategory('campus_guide','${s}')">
+          · ${s} <span class="sidebar-count">${cgCounts[s]||0}</span>
         </div>
       `).join('')}
     </div>
@@ -789,7 +806,8 @@ function renderCard(item) {
     `;
   }
   if (item.category === 'parent-response' || item.category === 'parent_response' ||
-      item.category === 'cs-appreciation' || item.category === 'cs_appreciation') {
+      item.category === 'cs-appreciation' || item.category === 'cs_appreciation' ||
+      item.category === 'campus-guide' || item.category === 'campus_guide') {
     // 두 종류: markdown(원문) 또는 recommended/avoid(권장/금지)
     const c = item.content;
     let preview = '';
@@ -811,7 +829,7 @@ function renderCard(item) {
 
 // ==================== 상세 뷰어 ====================
 function allItems() {
-  return [...DATA.contacts, ...DATA.tuition, ...DATA.admin, ...DATA.parent_response, ...DATA.cs_appreciation];
+  return [...DATA.contacts, ...DATA.tuition, ...DATA.admin, ...DATA.parent_response, ...DATA.cs_appreciation, ...DATA.campus_guide];
 }
 
 /* 간단 마크다운 렌더러 */
@@ -848,9 +866,10 @@ function renderDetail() {
 
   let body = '';
 
-  // 학부모 응대 & CS 감탄 매뉴얼 (markdown 또는 recommended/avoid)
+  // 학부모 응대 · CS 감탄 · 캠퍼스별 상담자료 (markdown 또는 recommended/avoid)
   if (item.category === 'parent-response' || item.category === 'parent_response' ||
-      item.category === 'cs-appreciation' || item.category === 'cs_appreciation') {
+      item.category === 'cs-appreciation' || item.category === 'cs_appreciation' ||
+      item.category === 'campus-guide' || item.category === 'campus_guide') {
     const c = item.content;
     let parts = [];
     if (c.markdown) {
@@ -951,7 +970,7 @@ function onSearch(e) {
   }
 
   // 그룹핑
-  const grouped = { contacts: [], tuition: [], admin: [], parent_response: [], cs_appreciation: [] };
+  const grouped = { contacts: [], tuition: [], admin: [], parent_response: [], cs_appreciation: [], campus_guide: [] };
   results.forEach(r => {
     const k = (r.category || '').replace('-','_');
     if (grouped[k]) grouped[k].push(r);
@@ -961,7 +980,8 @@ function onSearch(e) {
     tuition: '💰 수강료',
     admin: '📖 행정 매뉴얼',
     parent_response: '💬 학부모 응대 매뉴얼',
-    cs_appreciation: '⭐ CS 감탄 매뉴얼'
+    cs_appreciation: '⭐ CS 감탄 매뉴얼',
+    campus_guide: '🏫 캠퍼스별 상담자료'
   };
 
   box.innerHTML = Object.entries(grouped).filter(([k,v]) => v.length).map(([k,v]) => `

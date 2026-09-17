@@ -1,6 +1,6 @@
 {
   "app_name": "Flow CS Hub",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "last_updated": "2026-09-17",
   "campuses": [
     "광교",
@@ -15,7 +15,8 @@
     "admin": 46,
     "parent_response": 16,
     "cs_appreciation": 53,
-    "total": 214
+    "campus_guide": 6,
+    "total": 220
   },
   "categories": [
     {
@@ -42,6 +43,11 @@
       "key": "cs_appreciation",
       "label": "CS 감탄 매뉴얼",
       "icon": "⭐"
+    },
+    {
+      "key": "campus_guide",
+      "label": "캠퍼스별 상담자료",
+      "icon": "🏫"
     }
   ],
   "admin_subcategories": [
@@ -77,5 +83,8 @@
     "Ⅸ. 학부모 상황별 응대 매뉴얼",
     "Ⅹ. CS실 자체 관리",
     "Ⅺ. 스마일 친절응대 재교육"
+  ],
+  "campus_guide_subcategories": [
+    "수내 · 초등관"
   ]
 }
