@@ -1,6 +1,6 @@
 {
   "app_name": "Flow CS Hub",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "last_updated": "2026-09-17",
   "campuses": [
     "광교",
@@ -14,7 +14,8 @@
     "tuition": 66,
     "admin": 46,
     "parent_response": 16,
-    "total": 161
+    "cs_appreciation": 53,
+    "total": 214
   },
   "categories": [
     {
@@ -36,6 +37,11 @@
       "key": "parent_response",
       "label": "학부모 응대 매뉴얼",
       "icon": "💬"
+    },
+    {
+      "key": "cs_appreciation",
+      "label": "CS 감탄 매뉴얼",
+      "icon": "⭐"
     }
   ],
   "admin_subcategories": [
@@ -58,5 +64,18 @@
   "parent_response_subcategories": [
     "기본 응대 절차",
     "상황별 응대 매뉴얼"
+  ],
+  "cs_appreciation_subcategories": [
+    "Ⅰ. 친절과 감탄의 이해",
+    "Ⅱ. CS 친절 프로젝트 · 철학",
+    "Ⅲ. 감탄의 이해",
+    "Ⅳ. 5無→5有 · 알아봐주기",
+    "Ⅴ. 근무수칙 · 용모복장",
+    "Ⅵ. 기본 응대 (인사·고객맞이·전화)",
+    "Ⅶ. 고객 응대 (실전편) · 안내·상황별",
+    "Ⅷ. 기본 응대 절차 (학부모 매뉴얼 · 방문·전화·설명회)",
+    "Ⅸ. 학부모 상황별 응대 매뉴얼",
+    "Ⅹ. CS실 자체 관리",
+    "Ⅺ. 스마일 친절응대 재교육"
   ]
 }

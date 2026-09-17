@@ -485,7 +485,7 @@ window.difyChatbotConfig = {
 
 <script>
 // ==================== 데이터 로드 ====================
-let DATA = { contacts: [], tuition: [], admin: [], parent_response: [], meta: null };
+let DATA = { contacts: [], tuition: [], admin: [], parent_response: [], cs_appreciation: [], meta: null };
 let FUSE = null;  // Fuse.js 인스턴스 (전체 검색)
 
 /* 한글 초성 추출 (예: "광교 초등관" → "ㄱㄱ ㅊㄷㄱ") */
@@ -504,18 +504,19 @@ function isChosungQuery(q) {
 }
 
 async function loadData() {
-  const [c, t, a, pr, m] = await Promise.all([
+  const [c, t, a, pr, ca, m] = await Promise.all([
     fetch('data/contacts.json').then(r => r.json()),
     fetch('data/tuition.json').then(r => r.json()),
     fetch('data/admin.json').then(r => r.json()),
     fetch('data/parent-response.json').then(r => r.json()).catch(() => []),
+    fetch('data/cs-appreciation.json').then(r => r.json()).catch(() => []),
     fetch('data/meta.json').then(r => r.json()),
   ]);
   DATA.contacts = c; DATA.tuition = t; DATA.admin = a;
-  DATA.parent_response = pr; DATA.meta = m;
+  DATA.parent_response = pr; DATA.cs_appreciation = ca; DATA.meta = m;
 
   // 초성 필드 자동 추가
-  const all = [...c, ...t, ...a, ...pr];
+  const all = [...c, ...t, ...a, ...pr, ...ca];
   all.forEach(item => {
     item.chosung_text = toChosung(item.search_text || '') + ' ' + toChosung(item.title || '');
   });
@@ -615,6 +616,11 @@ function renderSidebar() {
   const prCounts = {};
   DATA.parent_response.forEach(x => prCounts[x.subcategory] = (prCounts[x.subcategory]||0) + 1);
 
+  // CS 감탄 매뉴얼 서브카테고리
+  const caSubs = DATA.meta.cs_appreciation_subcategories || [];
+  const caCounts = {};
+  DATA.cs_appreciation.forEach(x => caCounts[x.subcategory] = (caCounts[x.subcategory]||0) + 1);
+
   sb.innerHTML = `
     <button class="sidebar-close" onclick="closeSidebar()" aria-label="메뉴 닫기">✕</button>
     <div class="sidebar-section">
@@ -661,6 +667,17 @@ function renderSidebar() {
       ${prSubs.map(s => `
         <div class="sidebar-item sub ${active('parent_response', s)}" onclick="goCategory('parent_response','${s}')">
           · ${s} <span class="sidebar-count">${prCounts[s]||0}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">⭐ CS 감탄 매뉴얼</div>
+      <div class="sidebar-item ${CURRENT.category==='cs_appreciation' && !CURRENT.subcategory ? 'active' : ''}"
+           onclick="goCategory('cs_appreciation')">전체 <span class="sidebar-count">${DATA.cs_appreciation.length}</span></div>
+      ${caSubs.map(s => `
+        <div class="sidebar-item sub ${active('cs_appreciation', s)}" onclick="goCategory('cs_appreciation','${s}')">
+          · ${s} <span class="sidebar-count">${caCounts[s]||0}</span>
         </div>
       `).join('')}
     </div>
@@ -771,12 +788,13 @@ function renderCard(item) {
       </div>
     `;
   }
-  if (item.category === 'parent-response' || item.category === 'parent_response') {
-    // 두 종류: markdown(기본 응대 절차) 또는 recommended/avoid(상황별)
+  if (item.category === 'parent-response' || item.category === 'parent_response' ||
+      item.category === 'cs-appreciation' || item.category === 'cs_appreciation') {
+    // 두 종류: markdown(원문) 또는 recommended/avoid(권장/금지)
     const c = item.content;
     let preview = '';
     if (c.markdown) {
-      preview = c.markdown.replace(/[#*\-\n]/g, ' ').substring(0, 100) + '...';
+      preview = c.markdown.replace(/[#*\-\n]/g, ' ').replace(/\s+/g, ' ').substring(0, 110) + '...';
     } else if (c.recommended) {
       preview = '✅ ' + c.recommended.substring(0, 90).replace(/\n/g, ' ') + '...';
     }
@@ -793,7 +811,7 @@ function renderCard(item) {
 
 // ==================== 상세 뷰어 ====================
 function allItems() {
-  return [...DATA.contacts, ...DATA.tuition, ...DATA.admin, ...DATA.parent_response];
+  return [...DATA.contacts, ...DATA.tuition, ...DATA.admin, ...DATA.parent_response, ...DATA.cs_appreciation];
 }
 
 /* 간단 마크다운 렌더러 */
@@ -830,23 +848,31 @@ function renderDetail() {
 
   let body = '';
 
-  // 학부모 응대 매뉴얼 (markdown 또는 recommended/avoid)
-  if (item.category === 'parent-response' || item.category === 'parent_response') {
+  // 학부모 응대 & CS 감탄 매뉴얼 (markdown 또는 recommended/avoid)
+  if (item.category === 'parent-response' || item.category === 'parent_response' ||
+      item.category === 'cs-appreciation' || item.category === 'cs_appreciation') {
     const c = item.content;
+    let parts = [];
     if (c.markdown) {
-      body = `<div class="md-body">${renderMarkdown(c.markdown)}</div>`;
-    } else {
-      body = `
+      parts.push(`<div class="md-body">${renderMarkdown(c.markdown)}</div>`);
+    }
+    if (c.recommended) {
+      parts.push(`
         <div class="response-block ok">
           <div class="response-label">✅ 권장 답변</div>
-          <div class="response-text">${escapeHtml(c.recommended || '').replace(/\n/g, '<br>')}</div>
+          <div class="response-text">${escapeHtml(c.recommended).replace(/\n/g, '<br>')}</div>
         </div>
+      `);
+    }
+    if (c.avoid) {
+      parts.push(`
         <div class="response-block ng">
           <div class="response-label">❌ 피해야 할 응대</div>
-          <div class="response-text">${escapeHtml(c.avoid || '').replace(/\n/g, '<br>')}</div>
+          <div class="response-text">${escapeHtml(c.avoid).replace(/\n/g, '<br>')}</div>
         </div>
-      `;
+      `);
     }
+    body = parts.join('');
   } else if (item.category === 'admin' && item.content && item.content.markdown) {
     // 행정 매뉴얼: markdown 필드 있으면 원문 렌더링
     body = `<div class="md-body">${renderMarkdown(item.content.markdown)}</div>`;
@@ -925,7 +951,7 @@ function onSearch(e) {
   }
 
   // 그룹핑
-  const grouped = { contacts: [], tuition: [], admin: [], parent_response: [] };
+  const grouped = { contacts: [], tuition: [], admin: [], parent_response: [], cs_appreciation: [] };
   results.forEach(r => {
     const k = (r.category || '').replace('-','_');
     if (grouped[k]) grouped[k].push(r);
@@ -934,7 +960,8 @@ function onSearch(e) {
     contacts: '🏢 캠퍼스 정보',
     tuition: '💰 수강료',
     admin: '📖 행정 매뉴얼',
-    parent_response: '💬 학부모 응대 매뉴얼'
+    parent_response: '💬 학부모 응대 매뉴얼',
+    cs_appreciation: '⭐ CS 감탄 매뉴얼'
   };
 
   box.innerHTML = Object.entries(grouped).filter(([k,v]) => v.length).map(([k,v]) => `
