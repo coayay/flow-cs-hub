@@ -1,6 +1,7 @@
 {
   "note": "Google Sheet 웹 게시 URL. 값이 비어있으면 로컬 JSON 사용. 시트 편집 후 5~15분 이내 반영.",
-  "contacts_csv_url": "",
-  "tuition_csv_url": "",
+  "sheet_id": "1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU",
+  "contacts_csv_url": "https://docs.google.com/spreadsheets/d/1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU/export?format=csv&gid=0",
+  "tuition_csv_url": "https://docs.google.com/spreadsheets/d/1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU/export?format=csv&gid=2106301632",
   "cache_bust": true
 }
