@@ -7,6 +7,7 @@
 <meta name="googlebot" content="noindex, nofollow">
 <title>Flow CS Hub · CS 직원 전용</title>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
@@ -443,6 +444,7 @@ body {
     <div class="search-results" id="searchResults"></div>
   </div>
   <div class="header-actions">
+    <span id="sourceInfo" title="연락처·수강료 데이터 소스" style="font-size:11px; color:var(--muted); margin-right:8px;"></span>
     <span title="공용 ID (송재풍 팀장 관리)">👤 CS 직원 전용</span>
   </div>
 </header>
@@ -503,8 +505,88 @@ function isChosungQuery(q) {
   return /^[ㄱ-ㅎ\s]+$/.test(q);
 }
 
+/* Google Sheet CSV → JSON 변환 (연락처) */
+function csvToContacts(rows) {
+  return rows.filter(r => r.id).map(r => ({
+    id: r.id,
+    category: "contacts",
+    subcategory: r['분류'] || '',
+    campus: r['캠퍼스'] || '',
+    gwan: r['관/시설'] || '',
+    title: `${r['캠퍼스']||''} ${r['관/시설']||''}`.trim(),
+    content: {
+      "직통번호": r['직통번호'] || '',
+      "대표번호": r['대표번호'] || '',
+      "위치": r['위치'] || '',
+      "비고": r['비고'] || '',
+    },
+    tags: [r['캠퍼스']||'', r['관/시설']||'', '연락처'].filter(Boolean),
+    search_text: [r['캠퍼스'], r['관/시설'], r['직통번호'], r['대표번호'], r['위치'], r['비고']].filter(Boolean).join(' '),
+    related: [],
+    updated: new Date().toISOString().slice(0, 10),
+    _source: 'google-sheet',
+  }));
+}
+
+/* Google Sheet CSV → JSON 변환 (수강료) */
+function csvToTuition(rows) {
+  return rows.filter(r => r.id).map(r => {
+    const y25 = r['25년_수강료'] ? parseInt(String(r['25년_수강료']).replace(/[^\d]/g, ''), 10) : null;
+    const y26 = r['26년_수강료'] ? parseInt(String(r['26년_수강료']).replace(/[^\d]/g, ''), 10) : null;
+    const up = (y25 && y26) ? y26 - y25 : 0;
+    return {
+      id: r.id,
+      category: "tuition",
+      subcategory: r['구분'] || '',
+      campus: r['캠퍼스'] || '',
+      gwan: `${r['사업부']||''} ${r['브랜드']||''}`.trim(),
+      title: `${r['캠퍼스']||''} ${r['구분']||''} ${r['회당']||''} ${r['과정']||''}`.replace(/\s+/g, ' ').trim(),
+      content: {
+        "사업부": r['사업부'] || '',
+        "브랜드": r['브랜드'] || '',
+        "회당": r['회당'] || '',
+        "과정": r['과정'] || '',
+        "25년_수강료": y25,
+        "26년_수강료": y26,
+        "비고": r['비고'] || '',
+        "인상액": up,
+      },
+      tags: [r['캠퍼스'], r['구분'], r['사업부'], r['브랜드'], r['회당'], r['과정'], '수강료'].filter(Boolean),
+      search_text: [r['캠퍼스'], r['구분'], r['사업부'], r['브랜드'], r['회당'], r['과정'], y26 ? y26+'원' : '', r['비고']].filter(Boolean).join(' '),
+      related: [],
+      updated: new Date().toISOString().slice(0, 10),
+      _source: 'google-sheet',
+    };
+  });
+}
+
+/* Google Sheet CSV 로드 (실패 시 null) */
+async function fetchSheetCSV(url) {
+  if (!url || !/^https?:\/\//.test(url)) return null;
+  try {
+    // 캐시 무효화용 timestamp
+    const sep = url.includes('?') ? '&' : '?';
+    const bustUrl = url + sep + '_ts=' + Math.floor(Date.now() / 60000); // 1분 캐시
+    const res = await fetch(bustUrl);
+    if (!res.ok) return null;
+    const text = await res.text();
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+    if (parsed.errors.length && !parsed.data.length) return null;
+    return parsed.data;
+  } catch (e) {
+    console.warn('시트 로드 실패, 로컬 JSON 사용:', e);
+    return null;
+  }
+}
+
 async function loadData() {
-  const [c, t, a, pr, ca, cg, m] = await Promise.all([
+  // 시트 설정 먼저 로드
+  let sheetConfig = { contacts_csv_url: '', tuition_csv_url: '' };
+  try {
+    sheetConfig = await fetch('data/sheet-config.json?_ts=' + Math.floor(Date.now() / 60000)).then(r => r.json());
+  } catch {}
+
+  const [c_local, t_local, a, pr, ca, cg, m, c_sheet, t_sheet] = await Promise.all([
     fetch('data/contacts.json').then(r => r.json()),
     fetch('data/tuition.json').then(r => r.json()),
     fetch('data/admin.json').then(r => r.json()),
@@ -512,9 +594,24 @@ async function loadData() {
     fetch('data/cs-appreciation.json').then(r => r.json()).catch(() => []),
     fetch('data/campus-guide.json').then(r => r.json()).catch(() => []),
     fetch('data/meta.json').then(r => r.json()),
+    fetchSheetCSV(sheetConfig.contacts_csv_url),
+    fetchSheetCSV(sheetConfig.tuition_csv_url),
   ]);
+
+  // 시트 데이터 있으면 우선 사용, 없으면 로컬
+  const c = (c_sheet && c_sheet.length) ? csvToContacts(c_sheet) : c_local;
+  const t = (t_sheet && t_sheet.length) ? csvToTuition(t_sheet) : t_local;
+
   DATA.contacts = c; DATA.tuition = t; DATA.admin = a;
   DATA.parent_response = pr; DATA.cs_appreciation = ca; DATA.campus_guide = cg; DATA.meta = m;
+
+  // 데이터 소스 배지
+  const sourceInfo = document.getElementById('sourceInfo');
+  if (sourceInfo) {
+    const cSrc = (c_sheet && c_sheet.length) ? '🟢 시트' : '📄 로컬';
+    const tSrc = (t_sheet && t_sheet.length) ? '🟢 시트' : '📄 로컬';
+    sourceInfo.textContent = `연락처 ${cSrc} · 수강료 ${tSrc}`;
+  }
 
   // 초성 필드 자동 추가
   const all = [...c, ...t, ...a, ...pr, ...ca, ...cg];

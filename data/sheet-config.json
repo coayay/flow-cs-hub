@@ -1,0 +1,6 @@
+{
+  "note": "Google Sheet 웹 게시 URL. 값이 비어있으면 로컬 JSON 사용. 시트 편집 후 5~15분 이내 반영.",
+  "contacts_csv_url": "",
+  "tuition_csv_url": "",
+  "cache_bust": true
+}
