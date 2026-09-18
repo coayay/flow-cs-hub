@@ -655,12 +655,6 @@ async function loadData() {
 // ==================== 라우팅 ====================
 // URL 해시: #/category/subcategory/detail-id
 let CURRENT = { page: 'home', category: null, subcategory: null, itemId: null };
-const SIDEBAR_STATE = { hqOpen: (localStorage.getItem('hqOpen') === '1') };
-function toggleHqSection() {
-  SIDEBAR_STATE.hqOpen = !SIDEBAR_STATE.hqOpen;
-  localStorage.setItem('hqOpen', SIDEBAR_STATE.hqOpen ? '1' : '0');
-  renderSidebar();
-}
 
 function goHome() { location.hash = ''; closeSidebar(); }
 function goCategory(cat, sub) {
@@ -716,20 +710,10 @@ function renderSidebar() {
     CURRENT.category === cat && (sub === null || CURRENT.subcategory === sub) ? 'active' : '';
   const isHomeActive = CURRENT.page === 'home' ? 'active' : '';
 
-  // 캠퍼스별 그룹핑 (본사 제외)
+  // 캠퍼스별 그룹핑 (본사 포함)
   const campusCounts = {};
-  DATA.contacts.forEach(x => { if (x.campus && x.campus !== '본사') campusCounts[x.campus] = (campusCounts[x.campus]||0) + 1; });
-  const campusTotal = DATA.contacts.filter(x => x.campus !== '본사').length;
-
-  // 본사 부서별 그룹핑
-  const hqDepts = DATA.meta.hq_departments || [];
-  const hqCounts = {};
-  DATA.contacts.forEach(x => { if (x.campus === '본사') hqCounts[x.gwan] = (hqCounts[x.gwan]||0) + 1; });
-  const hqTotal = DATA.contacts.filter(x => x.campus === '본사').length;
-  // 본사 페이지에 있으면 자동으로 펼침
-  if (CURRENT.category === 'contacts' && CURRENT.subcategory && (CURRENT.subcategory === '본사' || CURRENT.subcategory.startsWith('본사::'))) {
-    SIDEBAR_STATE.hqOpen = true;
-  }
+  DATA.contacts.forEach(x => { if (x.campus) campusCounts[x.campus] = (campusCounts[x.campus]||0) + 1; });
+  const campusTotal = DATA.contacts.length;
 
   // 수강료 서브카테고리
   const tuitionSubs = DATA.meta.tuition_subcategories;
@@ -773,19 +757,6 @@ function renderSidebar() {
       `).join('')}
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-title sidebar-toggle" onclick="toggleHqSection()" style="cursor:pointer; user-select:none;">
-        <span id="hqCaret">${SIDEBAR_STATE.hqOpen ? '▾' : '▸'}</span> 🏛️ 본사 <span class="sidebar-count" style="margin-left:6px;">${hqTotal}</span>
-      </div>
-      <div id="hqSection" style="display:${SIDEBAR_STATE.hqOpen ? 'block' : 'none'};">
-        <div class="sidebar-item ${active('contacts', '본사')}" onclick="goCategory('contacts','본사')">전체 <span class="sidebar-count">${hqTotal}</span></div>
-        ${hqDepts.map(d => `
-          <div class="sidebar-item sub ${active('contacts', '본사::'+d)}" onclick="goCategory('contacts','본사::${d}')">
-            · ${d} <span class="sidebar-count">${hqCounts[d]||0}</span>
-          </div>
-        `).join('')}
-      </div>
-    </div>
 
     <div class="sidebar-section">
       <div class="sidebar-title">💰 수강료 (26년)</div>
@@ -886,24 +857,11 @@ function renderCategory() {
 
   let filtered = items;
   if (sub) {
-    if (cat === 'contacts') {
-      if (sub === '본사') {
-        filtered = items.filter(x => x.campus === '본사');
-      } else if (sub.startsWith('본사::')) {
-        const dept = sub.slice(4);
-        filtered = items.filter(x => x.campus === '본사' && x.gwan === dept);
-      } else {
-        filtered = items.filter(x => x.campus === sub);
-      }
-    } else {
-      filtered = items.filter(x => x.subcategory === sub);
-    }
-  } else if (cat === 'contacts') {
-    // 캠퍼스 정보 전체 — 본사 제외
-    filtered = items.filter(x => x.campus !== '본사');
+    if (cat === 'contacts') filtered = items.filter(x => x.campus === sub);
+    else filtered = items.filter(x => x.subcategory === sub);
   }
 
-  const subLabel = sub && sub.startsWith('본사::') ? '본사 › ' + sub.slice(4) : sub;
+  const subLabel = sub;
   const breadcrumb = `
     <div class="breadcrumb">
       <span onclick="goHome()" style="cursor:pointer">홈</span> ›
