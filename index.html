@@ -601,14 +601,15 @@ async function loadData() {
     sheetConfig = await fetch('data/sheet-config.json?_ts=' + Math.floor(Date.now() / 60000)).then(r => r.json());
   } catch {}
 
+  const bust = '?_ts=' + Math.floor(Date.now() / 60000);
   const [c_local, t_local, a, pr, ca, cg, m, c_sheet, t_sheet] = await Promise.all([
-    fetch('data/contacts.json').then(r => r.json()),
-    fetch('data/tuition.json').then(r => r.json()),
-    fetch('data/admin.json').then(r => r.json()),
-    fetch('data/parent-response.json').then(r => r.json()).catch(() => []),
-    fetch('data/cs-appreciation.json').then(r => r.json()).catch(() => []),
-    fetch('data/campus-guide.json').then(r => r.json()).catch(() => []),
-    fetch('data/meta.json').then(r => r.json()),
+    fetch('data/contacts.json' + bust).then(r => r.json()),
+    fetch('data/tuition.json' + bust).then(r => r.json()),
+    fetch('data/admin.json' + bust).then(r => r.json()),
+    fetch('data/parent-response.json' + bust).then(r => r.json()).catch(() => []),
+    fetch('data/cs-appreciation.json' + bust).then(r => r.json()).catch(() => []),
+    fetch('data/campus-guide.json' + bust).then(r => r.json()).catch(() => []),
+    fetch('data/meta.json' + bust).then(r => r.json()),
     fetchSheetCSV(sheetConfig.contacts_csv_url),
     fetchSheetCSV(sheetConfig.tuition_csv_url),
   ]);
