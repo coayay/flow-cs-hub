@@ -510,25 +510,37 @@ function isChosungQuery(q) {
 
 /* Google Sheet CSV → JSON 변환 (연락처) */
 function csvToContacts(rows) {
-  return rows.filter(r => r.id).map(r => ({
-    id: r.id,
-    category: "contacts",
-    subcategory: r['분류'] || '',
-    campus: r['캠퍼스'] || '',
-    gwan: r['관/시설'] || '',
-    title: `${r['캠퍼스']||''} ${r['관/시설']||''}`.trim(),
-    content: {
-      "직통번호": r['직통번호'] || '',
-      "대표번호": r['대표번호'] || '',
-      "위치": r['위치'] || '',
-      "비고": r['비고'] || '',
-    },
-    tags: [r['캠퍼스']||'', r['관/시설']||'', '연락처'].filter(Boolean),
-    search_text: [r['캠퍼스'], r['관/시설'], r['직통번호'], r['대표번호'], r['위치'], r['비고']].filter(Boolean).join(' '),
-    related: [],
-    updated: new Date().toISOString().slice(0, 10),
-    _source: 'google-sheet',
-  }));
+  return rows.filter(r => r.id).map(r => {
+    const camp = r['캠퍼스'] || '';
+    const gwan = r['관/시설'] || '';
+    const sub = r['분류'] || '';
+    let title;
+    if (sub === '캠퍼스 대표') title = `${camp} 캠퍼스 대표번호`;
+    else if (sub === '본사') title = `본사 ${gwan}`;
+    else title = `${camp} ${gwan}`.trim();
+    return {
+      id: r.id,
+      category: "contacts",
+      subcategory: sub,
+      campus: camp,
+      gwan: gwan,
+      title: title,
+      content: {
+        "위치": r['위치'] || '',
+        "직통번호": r['직통번호'] || '',
+        "대표번호": r['대표번호'] || '',
+        "담당자": r['담당자'] || '',
+        "내선": r['내선'] || r['내선번호'] || '',
+        "학원등록번호": r['학원등록번호'] || '',
+        "비고": r['비고'] || '',
+      },
+      tags: [camp, gwan, '연락처'].filter(Boolean),
+      search_text: [camp, gwan, r['담당자'], r['직통번호'], r['내선'], r['위치'], r['학원등록번호'], r['비고']].filter(Boolean).join(' '),
+      related: [],
+      updated: new Date().toISOString().slice(0, 10),
+      _source: 'google-sheet',
+    };
+  });
 }
 
 /* Google Sheet CSV → JSON 변환 (수강료) */
@@ -698,9 +710,16 @@ function renderSidebar() {
     CURRENT.category === cat && (sub === null || CURRENT.subcategory === sub) ? 'active' : '';
   const isHomeActive = CURRENT.page === 'home' ? 'active' : '';
 
-  // 캠퍼스별 그룹핑
+  // 캠퍼스별 그룹핑 (본사 제외)
   const campusCounts = {};
-  DATA.contacts.forEach(x => { if (x.campus) campusCounts[x.campus] = (campusCounts[x.campus]||0) + 1; });
+  DATA.contacts.forEach(x => { if (x.campus && x.campus !== '본사') campusCounts[x.campus] = (campusCounts[x.campus]||0) + 1; });
+  const campusTotal = DATA.contacts.filter(x => x.campus !== '본사').length;
+
+  // 본사 부서별 그룹핑
+  const hqDepts = DATA.meta.hq_departments || [];
+  const hqCounts = {};
+  DATA.contacts.forEach(x => { if (x.campus === '본사') hqCounts[x.gwan] = (hqCounts[x.gwan]||0) + 1; });
+  const hqTotal = DATA.contacts.filter(x => x.campus === '본사').length;
 
   // 수강료 서브카테고리
   const tuitionSubs = DATA.meta.tuition_subcategories;
@@ -735,11 +754,21 @@ function renderSidebar() {
 
     <div class="sidebar-section">
       <div class="sidebar-title">🏢 캠퍼스 정보</div>
-      <div class="sidebar-item ${active('contacts', null) || (CURRENT.category==='contacts' && !CURRENT.subcategory ? 'active' : '')}"
-           onclick="goCategory('contacts')">전체 <span class="sidebar-count">${DATA.contacts.length}</span></div>
+      <div class="sidebar-item ${CURRENT.category==='contacts' && !CURRENT.subcategory ? 'active' : ''}"
+           onclick="goCategory('contacts')">전체 <span class="sidebar-count">${campusTotal}</span></div>
       ${DATA.meta.campuses.map(c => `
         <div class="sidebar-item sub ${active('contacts', c)}" onclick="goCategory('contacts','${c}')">
           · ${c} <span class="sidebar-count">${campusCounts[c]||0}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">🏛️ 본사</div>
+      <div class="sidebar-item ${active('contacts', '본사')}" onclick="goCategory('contacts','본사')">전체 <span class="sidebar-count">${hqTotal}</span></div>
+      ${hqDepts.map(d => `
+        <div class="sidebar-item sub ${active('contacts', '본사::'+d)}" onclick="goCategory('contacts','본사::${d}')">
+          · ${d} <span class="sidebar-count">${hqCounts[d]||0}</span>
         </div>
       `).join('')}
     </div>
@@ -826,7 +855,7 @@ function renderHome() {
         <div class="card" onclick="goDetail('${c.id}')">
           <div class="card-tag">캠퍼스 대표</div>
           <div class="card-title">${c.title}</div>
-          <div class="card-body">📞 ${c.content.대표번호 || '-'}</div>
+          <div class="card-body">📞 ${c.content.직통번호 || c.content.대표번호 || '-'}</div>
         </div>
       `).join('')}
     </div>
@@ -843,21 +872,35 @@ function renderCategory() {
 
   let filtered = items;
   if (sub) {
-    if (cat === 'contacts') filtered = items.filter(x => x.campus === sub);
-    else filtered = items.filter(x => x.subcategory === sub);
+    if (cat === 'contacts') {
+      if (sub === '본사') {
+        filtered = items.filter(x => x.campus === '본사');
+      } else if (sub.startsWith('본사::')) {
+        const dept = sub.slice(4);
+        filtered = items.filter(x => x.campus === '본사' && x.gwan === dept);
+      } else {
+        filtered = items.filter(x => x.campus === sub);
+      }
+    } else {
+      filtered = items.filter(x => x.subcategory === sub);
+    }
+  } else if (cat === 'contacts') {
+    // 캠퍼스 정보 전체 — 본사 제외
+    filtered = items.filter(x => x.campus !== '본사');
   }
 
+  const subLabel = sub && sub.startsWith('본사::') ? '본사 › ' + sub.slice(4) : sub;
   const breadcrumb = `
     <div class="breadcrumb">
       <span onclick="goHome()" style="cursor:pointer">홈</span> ›
       <span onclick="goCategory('${cat}')" style="cursor:pointer">${catInfo.label}</span>
-      ${sub ? ` › <span>${sub}</span>` : ''}
+      ${sub ? ` › <span>${subLabel}</span>` : ''}
     </div>
   `;
 
   m.innerHTML = `
     ${breadcrumb}
-    <h1 class="page-title">${catInfo.icon} ${sub || catInfo.label}</h1>
+    <h1 class="page-title">${catInfo.icon} ${subLabel || catInfo.label}</h1>
     <div class="page-sub">${filtered.length}건</div>
     <div class="grid">
       ${filtered.map(item => renderCard(item)).join('')}
@@ -867,13 +910,16 @@ function renderCategory() {
 
 function renderCard(item) {
   if (item.category === 'contacts') {
+    const c = item.content;
     return `
       <div class="card" onclick="goDetail('${item.id}')">
         <div class="card-tag">${item.campus} · ${item.subcategory}</div>
         <div class="card-title">${item.title}</div>
         <div class="card-body">
-          <dt>직통</dt><dd>${item.content.직통번호 || '-'}</dd>
-          ${item.content.위치 ? `<dt>위치</dt><dd>${item.content.위치}</dd>` : ''}
+          ${c.직통번호 ? `<dt>직통</dt><dd>${c.직통번호}</dd>` : ''}
+          ${c.담당자 ? `<dt>담당자</dt><dd style="font-size:12px;">${c.담당자}</dd>` : ''}
+          ${c.위치 ? `<dt>위치</dt><dd>${c.위치}</dd>` : ''}
+          ${c.학원등록번호 ? `<dt>학원등록</dt><dd style="font-size:11px;">${c.학원등록번호}</dd>` : ''}
         </div>
       </div>
     `;
@@ -896,7 +942,17 @@ function renderCard(item) {
     `;
   }
   if (item.category === 'admin') {
-    const preview = item.content.본문.substring(0, 100) + (item.content.본문.length > 100 ? '...' : '');
+    const c = item.content;
+    let preview;
+    if (c.본문) {
+      preview = c.본문.substring(0, 100) + (c.본문.length > 100 ? '...' : '');
+    } else if (item.subcategory.startsWith('Ⅲ')) {
+      preview = `${c.반형태 || ''}${c['담당 CS'] ? ' · CS ' + c['담당 CS'] : ''}`.substring(0, 100);
+    } else if (item.subcategory.startsWith('Ⅳ')) {
+      preview = c.수익경로 || `${c.교육관||''}/${c.브랜드||''}/${c.캠퍼스||''}`;
+    } else {
+      preview = Object.values(c).filter(v => v).join(' · ').substring(0, 100);
+    }
     return `
       <div class="card" onclick="goDetail('${item.id}')">
         <div class="card-tag">${item.subcategory}</div>

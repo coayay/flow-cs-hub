@@ -7,16 +7,25 @@
     "수내",
     "수지",
     "영통",
-    "이매"
+    "이매",
+    "정자"
+  ],
+  "hq_departments": [
+    "기획조정실",
+    "경영본부/법무팀",
+    "인사기획팀",
+    "재무기획팀",
+    "총무기획팀",
+    "베니아트"
   ],
   "counts": {
     "contacts": 33,
     "tuition": 66,
-    "admin": 46,
+    "admin": 182,
     "parent_response": 16,
     "cs_appreciation": 53,
     "campus_guide": 6,
-    "total": 220
+    "total": 356
   },
   "categories": [
     {
@@ -58,7 +67,9 @@
     "Ⅱ-3. 교육청",
     "Ⅱ-4. ACA 시스템",
     "Ⅱ-5. 비즈메카 관리",
-    "Ⅱ-6. 기타 사항"
+    "Ⅱ-6. 기타 사항",
+    "Ⅲ. 반형태 · 수익구분",
+    "Ⅳ. 수익코드"
   ],
   "tuition_subcategories": [
     "고등 수아",
