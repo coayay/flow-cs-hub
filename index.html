@@ -462,31 +462,118 @@ body {
 <!-- 백드롭 (모바일 사이드바 배경) -->
 <div class="backdrop" id="backdrop" onclick="closeSidebar()"></div>
 
-<!-- Dify 챗봇 임베드 (Phase B 활성화됨) -->
-<script>
-window.difyChatbotConfig = {
-  token: 'UV8J2RYyJkU7csgN',
-  baseUrl: 'https://udify.app',
-  inputs: {},
-  systemVariables: {},
-  userVariables: {}
-}
-</script>
-<script src="https://udify.app/embed.min.js" id="UV8J2RYyJkU7csgN" defer></script>
+<!-- Flow 내장 챗봇 (Dify 대체 · Claude API 직접 연동) -->
 <style>
-  #dify-chatbot-bubble-button {
-    background-color: #0f766e !important;
-    right: 24px !important;
-    bottom: 24px !important;
+  /* 플로팅 버튼 */
+  #flow-bot-fab {
+    position: fixed; right: 24px; bottom: 24px; z-index: 999;
+    width: 60px; height: 60px; border-radius: 50%;
+    background: #0f766e; color: white; border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    cursor: pointer; font-size: 24px;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s;
   }
-  #dify-chatbot-bubble-window {
-    width: 26rem !important;
-    height: 42rem !important;
+  #flow-bot-fab:hover { transform: scale(1.08); }
+  #flow-bot-fab.active { background: #991b1b; }
+
+  /* 챗봇 창 */
+  #flow-bot-window {
+    position: fixed; right: 24px; bottom: 96px; z-index: 998;
+    width: 420px; height: 620px; max-height: calc(100vh - 120px);
+    background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    display: none; flex-direction: column; overflow: hidden;
+    border: 1px solid var(--line);
   }
-  #dify-chatbot-bubble-window iframe {
-    zoom: 0.9;
+  #flow-bot-window.open { display: flex; }
+  @media (max-width: 480px) {
+    #flow-bot-window {
+      right: 8px; left: 8px; bottom: 88px;
+      width: auto; height: calc(100vh - 110px);
+    }
   }
+  .flow-bot-header {
+    background: linear-gradient(135deg, #0f766e, #1e3a5f);
+    color: white; padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .flow-bot-header-title { font-weight: 700; font-size: 15px; }
+  .flow-bot-header-sub { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+  .flow-bot-messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    background: var(--bg); display: flex; flex-direction: column; gap: 12px;
+  }
+  .flow-bot-msg {
+    max-width: 85%; padding: 10px 14px; border-radius: 12px;
+    font-size: 14px; line-height: 1.6; word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .flow-bot-msg.user {
+    align-self: flex-end; background: #0f766e; color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .flow-bot-msg.bot {
+    align-self: flex-start; background: white; color: var(--ink);
+    border: 1px solid var(--line); border-bottom-left-radius: 4px;
+  }
+  .flow-bot-msg.loading { opacity: 0.6; font-style: italic; }
+  .flow-bot-msg.error { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+  .flow-bot-sources {
+    margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line);
+    font-size: 11px; color: var(--muted);
+  }
+  .flow-bot-sources-title { font-weight: 600; margin-bottom: 4px; }
+  .flow-bot-suggestions {
+    padding: 8px 12px; background: white; border-top: 1px solid var(--line);
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .flow-bot-suggest-chip {
+    padding: 6px 10px; border: 1px solid var(--line); border-radius: 16px;
+    font-size: 11px; cursor: pointer; background: var(--bg);
+    transition: all 0.15s;
+  }
+  .flow-bot-suggest-chip:hover { background: #0f766e; color: white; border-color: #0f766e; }
+  .flow-bot-input-area {
+    padding: 12px; border-top: 1px solid var(--line); background: white;
+    display: flex; gap: 8px;
+  }
+  .flow-bot-input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--line);
+    border-radius: 20px; font-size: 14px; outline: none;
+    font-family: inherit;
+  }
+  .flow-bot-input:focus { border-color: #0f766e; }
+  .flow-bot-send {
+    padding: 10px 16px; background: #0f766e; color: white;
+    border: none; border-radius: 20px; font-weight: 600;
+    cursor: pointer; font-size: 14px;
+  }
+  .flow-bot-send:disabled { background: #9ca3af; cursor: not-allowed; }
 </style>
+
+<!-- 챗봇 UI (플로팅) -->
+<button id="flow-bot-fab" onclick="FlowBot.toggle()" title="Flow 챗봇">💬</button>
+<div id="flow-bot-window">
+  <div class="flow-bot-header">
+    <div>
+      <div class="flow-bot-header-title">🤖 Flow 챗봇</div>
+      <div class="flow-bot-header-sub">실장님 전용 · Claude 기반</div>
+    </div>
+    <button onclick="FlowBot.clear()" title="대화 초기화" style="background:transparent;border:none;color:white;cursor:pointer;font-size:16px;">↻</button>
+  </div>
+  <div class="flow-bot-messages" id="flowBotMessages"></div>
+  <div class="flow-bot-suggestions" id="flowBotSuggestions">
+    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('광교 중등관 주소 알려줘')">광교 중등관 주소</span>
+    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('본사 인사기획팀 담당자 내선')">본사 인사팀 내선</span>
+    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('수내 초등관 주3회 수강료')">수내 초등 주3회</span>
+    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('학부모 환불 요청 응대 스크립트')">환불 응대</span>
+    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('수지 고등관 담당자 알려줘')">수지 고등 담당자</span>
+  </div>
+  <div class="flow-bot-input-area">
+    <input type="text" class="flow-bot-input" id="flowBotInput" placeholder="질문을 입력하세요..." onkeydown="if(event.key==='Enter')FlowBot.send()">
+    <button class="flow-bot-send" id="flowBotSend" onclick="FlowBot.send()">전송</button>
+  </div>
+</div>
 
 <script>
 // ==================== 데이터 로드 ====================
@@ -1150,8 +1237,192 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') hideSearchResults();
 });
 
+// ==================== Flow 챗봇 (Claude 직접 연동) ====================
+const FlowBot = (function() {
+  let config = { enabled: false, worker_url: '', model: 'claude-haiku-4-5', max_tokens: 1024, temperature: 0.3, top_k_search: 5 };
+  const messages = [];  // 대화 히스토리
+  let isOpen = false;
+  let isSending = false;
+
+  async function loadConfig() {
+    try {
+      const r = await fetch('data/chatbot-config.json?_t=' + Date.now());
+      config = await r.json();
+    } catch (e) {
+      console.warn('챗봇 설정 로드 실패:', e);
+    }
+  }
+
+  function toggle() {
+    isOpen = !isOpen;
+    const win = document.getElementById('flow-bot-window');
+    const fab = document.getElementById('flow-bot-fab');
+    if (isOpen) {
+      win.classList.add('open');
+      fab.classList.add('active');
+      fab.textContent = '✕';
+      // 환영 메시지
+      if (messages.length === 0) {
+        addMsg('bot', `안녕하세요! Flow CS Hub 챗봇입니다.\n\n연락처·수강료·응대 매뉴얼에 대해 물어보세요.\n아래 추천 질문을 눌러 바로 테스트할 수도 있습니다.`);
+      }
+      setTimeout(() => document.getElementById('flowBotInput').focus(), 100);
+    } else {
+      win.classList.remove('open');
+      fab.classList.remove('active');
+      fab.textContent = '💬';
+    }
+  }
+
+  function clear() {
+    messages.length = 0;
+    document.getElementById('flowBotMessages').innerHTML = '';
+    addMsg('bot', '대화를 초기화했습니다. 새 질문을 입력해주세요.');
+  }
+
+  function addMsg(role, text, sources = null, cssClass = '') {
+    const container = document.getElementById('flowBotMessages');
+    const div = document.createElement('div');
+    div.className = `flow-bot-msg ${role === 'user' ? 'user' : 'bot'} ${cssClass}`;
+    div.textContent = text;
+    if (sources && sources.length > 0) {
+      const srcEl = document.createElement('div');
+      srcEl.className = 'flow-bot-sources';
+      srcEl.innerHTML = `<div class="flow-bot-sources-title">📚 참고 데이터</div>` +
+        sources.map(s => `• ${s}`).join('<br>');
+      div.appendChild(srcEl);
+    }
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  function ask(q) {
+    document.getElementById('flowBotInput').value = q;
+    send();
+  }
+
+  async function send() {
+    if (isSending) return;
+    const input = document.getElementById('flowBotInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    addMsg('user', text);
+    messages.push({ role: 'user', content: text });
+
+    // 설정 미완료 체크
+    if (!config.enabled || !config.worker_url) {
+      addMsg('bot', config.placeholder_message || '챗봇 백엔드가 아직 설정되지 않았습니다. 홈 상단 검색창(Ctrl+K)으로 바로 조회해주세요.', null, 'error');
+      return;
+    }
+
+    isSending = true;
+    document.getElementById('flowBotSend').disabled = true;
+    const loadingEl = addMsg('bot', '🔍 데이터 검색 중...', null, 'loading');
+
+    try {
+      // 1. 로컬 검색 (Fuse 재사용)
+      const searchResults = retrieveContext(text);
+      loadingEl.textContent = '💭 답변 생성 중...';
+
+      // 2. Claude API 호출
+      const systemPrompt = buildSystemPrompt(searchResults);
+      const res = await fetch(config.worker_url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: config.model,
+          max_tokens: config.max_tokens,
+          temperature: config.temperature,
+          system: systemPrompt,
+          messages: messages.map(m => ({ role: m.role, content: m.content }))
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const reply = data.text || '(응답 없음)';
+      messages.push({ role: 'assistant', content: reply });
+
+      // 참고 데이터 소스
+      const sourceTitles = searchResults.map(r => r.title).slice(0, 3);
+
+      loadingEl.remove();
+      addMsg('bot', reply, sourceTitles);
+    } catch (err) {
+      loadingEl.remove();
+      addMsg('bot', `오류: ${err.message}\n\n잠시 후 다시 시도하거나, 홈 상단 검색창(Ctrl+K)으로 바로 조회해주세요.`, null, 'error');
+    } finally {
+      isSending = false;
+      document.getElementById('flowBotSend').disabled = false;
+    }
+  }
+
+  // 로컬 검색 (연락처·수강료·매뉴얼 전체 대상)
+  function retrieveContext(query) {
+    if (!FUSE) return [];
+    const hits = FUSE.search(query, { limit: config.top_k_search || 5 });
+    return hits.map(h => formatForContext(h.item));
+  }
+
+  // 검색 결과를 Claude context용으로 포맷
+  function formatForContext(item) {
+    const parts = [];
+    parts.push(`[${item.category || ''}] ${item.title || ''}`);
+    if (item.campus) parts.push(`캠퍼스: ${item.campus}`);
+    if (item.gwan) parts.push(`관/부서: ${item.gwan}`);
+    if (item.subcategory) parts.push(`구분: ${item.subcategory}`);
+
+    const c = item.content || {};
+    for (const [k, v] of Object.entries(c)) {
+      if (!v) continue;
+      if (typeof v === 'number') {
+        parts.push(`${k}: ${v.toLocaleString()}`);
+      } else {
+        parts.push(`${k}: ${v}`);
+      }
+    }
+    return { title: item.title, text: parts.join(' | ') };
+  }
+
+  function buildSystemPrompt(searchResults) {
+    const contextBlock = searchResults.length > 0
+      ? searchResults.map((r, i) => `[자료 ${i+1}] ${r.text}`).join('\n\n')
+      : '(관련 자료가 검색되지 않았습니다)';
+
+    return `당신은 수학의아침 CS 직원을 돕는 상담 보조 챗봇입니다.
+
+<원칙>
+1. 아래 [검색된 자료]에 답이 있으면 반드시 그 내용으로 답변합니다. 자료의 숫자·이름·내선·주소를 그대로 인용합니다.
+2. 자료가 완전히 무관할 때만 "검색 결과에 없습니다. 담당자에게 문의하세요"로 응답합니다. 자료에 부분적으로라도 답이 있으면 활용합니다.
+3. 답변은 간결하게 3~8줄. 핵심 정보를 bullet 형식으로 정리합니다.
+4. 연락처 질문: 위치·직통·담당자·내선 순으로.
+5. 수강료 질문: 금액(26년 기준)·브랜드·회당 명시. 25년 대비 인상액도 함께.
+6. 학부모 응대 스크립트 요청: 공감→확인→제안 3단 구조.
+7. 캠퍼스·관이 불명확하면 되묻기.
+</원칙>
+
+<검색된 자료>
+${contextBlock}
+</검색된 자료>
+
+이 자료를 바탕으로 CS 직원의 질문에 즉시 활용 가능한 수준으로 답변하세요.`;
+  }
+
+  // 초기화
+  async function init() {
+    await loadConfig();
+  }
+
+  return { toggle, clear, send, ask, init };
+})();
+
 // ==================== 시작 ====================
-loadData();
+loadData().then(() => FlowBot.init());
 </script>
 </body>
 </html>
