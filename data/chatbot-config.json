@@ -1,8 +1,8 @@
 {
-  "note": "Flow CS Hub 내장 챗봇 설정. worker_url이 비어있으면 챗봇 비활성화. Cloudflare Workers 설정 후 URL 입력.",
-  "enabled": false,
-  "worker_url": "",
-  "model": "claude-haiku-4-5",
+  "note": "Flow CS Hub 내장 챗봇 설정. worker_url이 비어있으면 챗봇 비활성화.",
+  "enabled": true,
+  "worker_url": "https://flow-cs-hub-proxy.f004a-ac9.workers.dev",
+  "model": "claude-haiku-4-5-20251001",
   "max_tokens": 1024,
   "temperature": 0.3,
   "top_k_search": 5,
