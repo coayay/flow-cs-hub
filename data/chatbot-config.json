@@ -1,10 +1,10 @@
 {
-  "note": "Flow CS Hub 내장 챗봇 설정. worker_url이 비어있으면 챗봇 비활성화.",
-  "enabled": true,
+  "note": "Anthropic API 403 임시 차단 중 (2026-10-14~). 복구 후 enabled=true로 변경.",
+  "enabled": false,
   "worker_url": "https://flow-cs-hub-proxy.f004a-ac9.workers.dev",
   "model": "claude-haiku-4-5-20251001",
   "max_tokens": 1024,
   "temperature": 0.3,
   "top_k_search": 5,
-  "placeholder_message": "챗봇은 현재 설정 중입니다. 홈 상단 검색창(Ctrl+K)으로 바로 조회해주세요."
+  "placeholder_message": "챗봇 복구 작업 중입니다. 담당자·수강료는 홈 상단 검색창(Ctrl+K) 또는 좌측 사이드바에서 즉시 조회 가능합니다."
 }
