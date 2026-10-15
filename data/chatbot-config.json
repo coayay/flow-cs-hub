@@ -1,10 +1,8 @@
 {
-  "note": "Anthropic API 403 임시 차단 중 (2026-10-14~). 복구 후 enabled=true로 변경.",
-  "enabled": false,
-  "worker_url": "https://flow-cs-hub-proxy.f004a-ac9.workers.dev",
-  "model": "claude-haiku-4-5-20251001",
-  "max_tokens": 1024,
-  "temperature": 0.3,
+  "note": "Flow 챗봇 · 로컬 검색 모드 (LLM 없음). 데이터 JSON에서 Fuse.js로 검색 → 카테고리별 템플릿으로 즉시 답변. 환각 없음, 비용 없음, <100ms 응답.",
+  "enabled": true,
+  "mode": "local-search",
   "top_k_search": 5,
-  "placeholder_message": "챗봇 복구 작업 중입니다. 담당자·수강료는 홈 상단 검색창(Ctrl+K) 또는 좌측 사이드바에서 즉시 조회 가능합니다."
+  "worker_url_disabled": "https://flow-cs-hub-proxy.f004a-ac9.workers.dev (Phase 2 복구 시 enable)",
+  "placeholder_message": ""
 }

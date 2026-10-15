@@ -557,7 +557,7 @@ body {
   <div class="flow-bot-header">
     <div>
       <div class="flow-bot-header-title">🤖 Flow 챗봇</div>
-      <div class="flow-bot-header-sub">실장님 전용 · Claude 기반</div>
+      <div class="flow-bot-header-sub">실장님 전용 · 즉시 검색</div>
     </div>
     <button onclick="FlowBot.clear()" title="대화 초기화" style="background:transparent;border:none;color:white;cursor:pointer;font-size:16px;">↻</button>
   </div>
@@ -1263,7 +1263,7 @@ const FlowBot = (function() {
       fab.textContent = '✕';
       // 환영 메시지
       if (messages.length === 0) {
-        addMsg('bot', `안녕하세요! Flow CS Hub 챗봇입니다.\n\n연락처·수강료·응대 매뉴얼에 대해 물어보세요.\n아래 추천 질문을 눌러 바로 테스트할 수도 있습니다.`);
+        addMsg('bot', `안녕하세요! Flow CS Hub 챗봇입니다.\n\n자연어로 질문하시면 데이터베이스에서 즉시 찾아 답변드립니다.\n\n💡 자주 묻는 질문:\n• "수내 초등관 연락처"\n• "본사 인사팀 내선"\n• "광교 중등관 주소"\n• "수지 고등사스 수강료"\n• "환불 매뉴얼"\n\n하단 추천 버튼으로도 바로 테스트 가능합니다.`);
       }
       setTimeout(() => document.getElementById('flowBotInput').focus(), 100);
     } else {
@@ -1311,106 +1311,280 @@ const FlowBot = (function() {
     addMsg('user', text);
     messages.push({ role: 'user', content: text });
 
-    // 설정 미완료 체크
-    if (!config.enabled || !config.worker_url) {
-      addMsg('bot', config.placeholder_message || '챗봇 백엔드가 아직 설정되지 않았습니다. 홈 상단 검색창(Ctrl+K)으로 바로 조회해주세요.', null, 'error');
-      return;
-    }
-
     isSending = true;
     document.getElementById('flowBotSend').disabled = true;
-    const loadingEl = addMsg('bot', '🔍 데이터 검색 중...', null, 'loading');
 
     try {
-      // 1. 로컬 검색 (Fuse 재사용)
-      const searchResults = retrieveContext(text);
-      loadingEl.textContent = '💭 답변 생성 중...';
+      // 로컬 검색 + 템플릿 포맷 (LLM 없음, 즉시 응답)
+      const hits = searchLocal(text);
 
-      // 2. Claude API 호출
-      const systemPrompt = buildSystemPrompt(searchResults);
-      const res = await fetch(config.worker_url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: config.model,
-          max_tokens: config.max_tokens,
-          temperature: config.temperature,
-          system: systemPrompt,
-          messages: messages.map(m => ({ role: m.role, content: m.content }))
-        })
-      });
+      if (hits.length === 0) {
+        addMsg('bot', `"${text}"에 대한 검색 결과가 없습니다.\n\n💡 팁:\n- 캠퍼스명(수내·광교·수지·영통·이매·정자·본사) 포함해보세요\n- 관(초등·중등·고등) 또는 부서명 포함\n- 키워드 간단히 (예: "수지 중등 담당자")`, null, 'error');
+      } else {
+        // 최상위 결과를 메인 답변으로 포맷
+        const main = hits[0];
+        const mainMsg = formatAnswer(main);
+        const sources = hits.slice(0, 3).map(h => h.title);
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `HTTP ${res.status}`);
+        addMsg('bot', mainMsg, sources);
+
+        // 2위 이하가 있으면 "다른 결과 N건" 안내
+        if (hits.length > 1) {
+          const others = hits.slice(1, 4).map((h, i) =>
+            `${i+2}. ${h.title}${h.campus ? ' ('+h.campus+')' : ''}`
+          ).join('\n');
+          addMsg('bot', `📋 다른 관련 결과 ${hits.length-1}건:\n${others}\n\n필요한 항목을 더 구체적으로 질문해주세요.`, null, 'other-hits');
+        }
       }
-      const data = await res.json();
-      const reply = data.text || '(응답 없음)';
-      messages.push({ role: 'assistant', content: reply });
-
-      // 참고 데이터 소스
-      const sourceTitles = searchResults.map(r => r.title).slice(0, 3);
-
-      loadingEl.remove();
-      addMsg('bot', reply, sourceTitles);
     } catch (err) {
-      loadingEl.remove();
-      addMsg('bot', `오류: ${err.message}\n\n잠시 후 다시 시도하거나, 홈 상단 검색창(Ctrl+K)으로 바로 조회해주세요.`, null, 'error');
+      addMsg('bot', `오류: ${err.message}`, null, 'error');
     } finally {
       isSending = false;
       document.getElementById('flowBotSend').disabled = false;
     }
   }
 
-  // 로컬 검색 (연락처·수강료·매뉴얼 전체 대상)
-  function retrieveContext(query) {
+  // 로컬 검색 (의도 감지 → 카테고리 전용 검색 우선 → Fuse 전체 검색 폴백)
+  function searchLocal(query) {
     if (!FUSE) return [];
-    const hits = FUSE.search(query, { limit: config.top_k_search || 5 });
-    return hits.map(h => formatForContext(h.item));
-  }
+    const q = query.trim();
+    const intent = detectIntent(q);
+    const limit = 10;
 
-  // 검색 결과를 Claude context용으로 포맷
-  function formatForContext(item) {
-    const parts = [];
-    parts.push(`[${item.category || ''}] ${item.title || ''}`);
-    if (item.campus) parts.push(`캠퍼스: ${item.campus}`);
-    if (item.gwan) parts.push(`관/부서: ${item.gwan}`);
-    if (item.subcategory) parts.push(`구분: ${item.subcategory}`);
+    const allHits = []; // {item, source, rank}
+    const seen = new Set();
+    const addHit = (item, source) => {
+      if (!item || seen.has(item.id)) return;
+      seen.add(item.id);
+      allHits.push({ item, source });
+    };
 
-    const c = item.content || {};
-    for (const [k, v] of Object.entries(c)) {
-      if (!v) continue;
-      if (typeof v === 'number') {
-        parts.push(`${k}: ${v.toLocaleString()}`);
-      } else {
-        parts.push(`${k}: ${v}`);
+    // 1순위: intent.category 감지된 경우 그 카테고리 내 간단 매칭
+    if (intent.category && DATA[intent.category]) {
+      const keywords = q.split(/\s+/).filter(w => w.length >= 2);
+      const scored = DATA[intent.category].map(item => {
+        const text = (item.title + ' ' + (item.search_text || '')).toLowerCase();
+        let score = 0;
+        keywords.forEach(kw => { if (text.includes(kw.toLowerCase())) score += 1; });
+        // 캠퍼스 매칭 가중치
+        if (intent.campus && item.campus === intent.campus) score += 3;
+        return { item, score };
+      }).filter(x => x.score > 0).sort((a,b) => b.score - a.score);
+      scored.slice(0, 5).forEach(x => addHit(x.item, 'intent-category'));
+    }
+
+    // 2순위: Fuse 전체 검색 (오타·관련어 포함)
+    FUSE.search(q, { limit }).forEach(h => addHit(h.item, 'fuse-original'));
+
+    // 3순위: 불용어 제거 후 재검색
+    if (allHits.length < 3) {
+      const cleaned = cleanQuery(q);
+      if (cleaned && cleaned !== q) {
+        FUSE.search(cleaned, { limit }).forEach(h => addHit(h.item, 'fuse-cleaned'));
       }
     }
-    return { title: item.title, text: parts.join(' | ') };
+
+    // 4순위: 캠퍼스+관 핵심 키워드로 재검색
+    if (allHits.length < 3) {
+      const keywords = extractCoreKeywords(q);
+      if (keywords) {
+        FUSE.search(keywords, { limit }).forEach(h => addHit(h.item, 'fuse-keywords'));
+      }
+    }
+
+    let hits = allHits.map(x => x.item);
+
+    // intent.campus 매칭 가중치
+    if (intent.campus) {
+      hits.sort((a, b) => {
+        const aC = (a.campus === intent.campus) ? -1 : 1;
+        const bC = (b.campus === intent.campus) ? -1 : 1;
+        return aC - bC;
+      });
+    }
+
+    return hits.slice(0, 5);
   }
 
-  function buildSystemPrompt(searchResults) {
-    const contextBlock = searchResults.length > 0
-      ? searchResults.map((r, i) => `[자료 ${i+1}] ${r.text}`).join('\n\n')
-      : '(관련 자료가 검색되지 않았습니다)';
+  // 쿼리에서 불용어 제거
+  function cleanQuery(q) {
+    const stopwords = /(알려줘|알려주세요|뭐야|무엇이|무엇|어떻게|방법|어디야|어디|에요|인가요|주세요|입니다|있어|있나|주소|전화번호|연락처|번호|가격|비용|얼마|좀|의|를|을|이|가|은|는)/g;
+    return q.replace(stopwords, ' ').replace(/\s+/g, ' ').trim();
+  }
 
-    return `당신은 수학의아침 CS 직원을 돕는 상담 보조 챗봇입니다.
+  // 캠퍼스 + 관 핵심 키워드만 추출
+  function extractCoreKeywords(q) {
+    const campuses = ['이매', '수내', '수지', '광교', '영통', '정자', '본사'];
+    const gwans = ['초등', '중등', '고등', '영재', '사이언스카이', '사스', '테디', '더블랙'];
+    const found = [];
+    campuses.forEach(c => { if (q.includes(c)) found.push(c); });
+    gwans.forEach(g => { if (q.includes(g)) found.push(g); });
+    return found.join(' ');
+  }
 
-<원칙>
-1. 아래 [검색된 자료]에 답이 있으면 반드시 그 내용으로 답변합니다. 자료의 숫자·이름·내선·주소를 그대로 인용합니다.
-2. 자료가 완전히 무관할 때만 "검색 결과에 없습니다. 담당자에게 문의하세요"로 응답합니다. 자료에 부분적으로라도 답이 있으면 활용합니다.
-3. 답변은 간결하게 3~8줄. 핵심 정보를 bullet 형식으로 정리합니다.
-4. 연락처 질문: 위치·직통·담당자·내선 순으로.
-5. 수강료 질문: 금액(26년 기준)·브랜드·회당 명시. 25년 대비 인상액도 함께.
-6. 학부모 응대 스크립트 요청: 공감→확인→제안 3단 구조.
-7. 캠퍼스·관이 불명확하면 되묻기.
-</원칙>
+  // 질문 의도 감지 (키워드 기반)
+  function detectIntent(q) {
+    const intent = { category: null, campus: null };
 
-<검색된 자료>
-${contextBlock}
-</검색된 자료>
+    // 카테고리 힌트
+    if (/수강료|비용|가격|얼마|원/.test(q)) intent.category = 'tuition';
+    else if (/담당자|내선|전화|직통|연락처|번호|주소|위치|어디/.test(q)) intent.category = 'contacts';
+    else if (/응대|스크립트|환불|클레임|문의|대응/.test(q)) intent.category = 'parent_response';
+    else if (/감탄|친절|응대 매뉴얼|CS/.test(q)) intent.category = 'cs_appreciation';
+    else if (/매뉴얼|절차|방법|어떻게|등록/.test(q)) intent.category = 'admin';
 
-이 자료를 바탕으로 CS 직원의 질문에 즉시 활용 가능한 수준으로 답변하세요.`;
+    // 캠퍼스 힌트
+    const campuses = ['이매', '수내', '수지', '광교', '영통', '정자', '본사'];
+    for (const c of campuses) {
+      if (q.includes(c)) { intent.campus = c; break; }
+    }
+
+    return intent;
+  }
+
+  // ⭐ 카테고리별 답변 템플릿 ⭐
+  function formatAnswer(item) {
+    const cat = item.category;
+    const c = item.content || {};
+
+    if (cat === 'contacts') return formatContact(item, c);
+    if (cat === 'tuition') return formatTuition(item, c);
+    if (cat === 'admin') return formatAdmin(item, c);
+    if (cat === 'parent_response' || cat === 'parent-response') return formatParentResponse(item, c);
+    if (cat === 'cs_appreciation' || cat === 'cs-appreciation') return formatCSAppreciation(item, c);
+    if (cat === 'campus_guide' || cat === 'campus-guide') return formatCampusGuide(item, c);
+    return `${item.title}\n\n${Object.entries(c).filter(([k,v])=>v).map(([k,v])=>`${k}: ${v}`).join('\n')}`;
+  }
+
+  function formatContact(item, c) {
+    const lines = [];
+    const icon = item.subcategory === '본사' ? '🏛️' : (item.subcategory === '캠퍼스 대표' ? '🏢' : '📍');
+    lines.push(`${icon} ${item.title}`);
+    lines.push('');
+
+    if (c.직통번호 && c.직통번호 !== c.대표번호) lines.push(`📞 직통: ${c.직통번호}`);
+    if (c.대표번호) lines.push(`📞 대표번호: ${c.대표번호}`);
+    if (c.담당자) {
+      lines.push('');
+      lines.push(`👤 담당자:`);
+      // 괄호 내부 "·"와 구분자 "·"를 분리:
+      // ") · " 또는 "] · " 패턴만 담당자 구분자로 간주
+      let persons;
+      if (/\)\s·\s|\]\s·\s/.test(c.담당자)) {
+        persons = c.담당자.split(/(?<=[\)\]])\s·\s/);
+      } else {
+        persons = c.담당자.split(/\s·\s/);
+      }
+      persons.forEach(p => lines.push(`  • ${p.trim()}`));
+    }
+    if (c.내선 && !c.담당자) lines.push(`📱 내선: ${c.내선}`);
+    if (c.위치) {
+      lines.push('');
+      lines.push(`📍 위치: ${c.위치}`);
+    }
+    if (c.학원등록번호) lines.push(`🏫 학원등록: ${c.학원등록번호}`);
+    if (c.비고) {
+      lines.push('');
+      lines.push(`💡 ${c.비고}`);
+    }
+    return lines.join('\n');
+  }
+
+  function formatTuition(item, c) {
+    const lines = [];
+    lines.push(`💰 ${item.title}`);
+    lines.push('');
+    if (c['26년_수강료']) {
+      lines.push(`▶ 26년 수강료: ${c['26년_수강료'].toLocaleString()}원`);
+    }
+    if (c['25년_수강료'] && c.인상액 != null) {
+      const up = c.인상액;
+      if (up > 0) {
+        lines.push(`   25년 대비 ↑ ${up.toLocaleString()}원 인상`);
+        lines.push(`   (25년: ${c['25년_수강료'].toLocaleString()}원)`);
+      } else if (up < 0) {
+        lines.push(`   25년 대비 ↓ ${Math.abs(up).toLocaleString()}원 인하`);
+        lines.push(`   (25년: ${c['25년_수강료'].toLocaleString()}원)`);
+      } else {
+        lines.push(`   25년과 동일: ${c['25년_수강료'].toLocaleString()}원`);
+      }
+    }
+    lines.push('');
+    const spec = [];
+    if (c.브랜드) spec.push(`브랜드: ${c.브랜드}`);
+    if (c.회당) spec.push(`회당: ${c.회당}`);
+    if (c.과정) spec.push(`과정: ${c.과정}`);
+    if (c.사업부) spec.push(`사업부: ${c.사업부}`);
+    if (spec.length) lines.push(spec.join(' · '));
+    if (c.비고) {
+      lines.push('');
+      lines.push(`💡 ${c.비고}`);
+    }
+    return lines.join('\n');
+  }
+
+  function formatAdmin(item, c) {
+    const lines = [];
+    lines.push(`📖 ${item.title}`);
+    if (item.subcategory) lines.push(`[${item.subcategory}]`);
+    lines.push('');
+
+    // 반형태/수익코드
+    if (c.고유번호) {
+      lines.push(`▶ 고유번호: ${c.고유번호}`);
+      if (c.교육관) lines.push(`교육관: ${c.교육관}`);
+      if (c.브랜드) lines.push(`브랜드: ${c.브랜드}`);
+      if (c.캠퍼스) lines.push(`캠퍼스: ${c.캠퍼스}`);
+      if (c.반형태) {
+        lines.push('');
+        lines.push(`📝 반형태:\n${c.반형태}`);
+      }
+      if (c['담당 CS']) lines.push(`\n👤 담당 CS: ${c['담당 CS']}`);
+      if (c.건물명) lines.push(`🏢 ${c.건물명}${c.층수 ? ' ' + c.층수 : ''}`);
+      if (c.학원등록번호) lines.push(`🏫 ${c.학원등록번호}`);
+      if (c.수익경로) lines.push(`\n💼 수익경로: ${c.수익경로}`);
+      return lines.join('\n');
+    }
+
+    // 일반 매뉴얼
+    if (c.본문) {
+      const body = c.본문.length > 500 ? c.본문.substring(0, 500) + '...\n\n(상세는 "📖 매뉴얼" 메뉴에서 확인)' : c.본문;
+      lines.push(body);
+    } else if (c.markdown) {
+      const md = c.markdown.length > 500 ? c.markdown.substring(0, 500) + '...' : c.markdown;
+      lines.push(md);
+    }
+    return lines.join('\n');
+  }
+
+  function formatParentResponse(item, c) {
+    const lines = [];
+    lines.push(`💬 ${item.title}`);
+    if (item.subcategory) lines.push(`[${item.subcategory}]`);
+    lines.push('');
+    if (c.markdown) {
+      const md = c.markdown.length > 600 ? c.markdown.substring(0, 600) + '...' : c.markdown;
+      lines.push(md);
+    }
+    if (c.recommended) {
+      lines.push('');
+      lines.push(`✅ 권장 응대:`);
+      lines.push(c.recommended);
+    }
+    if (c.avoid) {
+      lines.push('');
+      lines.push(`❌ 피해야 할 응대:`);
+      lines.push(c.avoid);
+    }
+    return lines.join('\n');
+  }
+
+  function formatCSAppreciation(item, c) {
+    return formatParentResponse(item, c).replace('💬', '⭐');
+  }
+
+  function formatCampusGuide(item, c) {
+    return formatParentResponse(item, c).replace('💬', '🏫');
   }
 
   // 초기화
