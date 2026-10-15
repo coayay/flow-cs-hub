@@ -1672,8 +1672,9 @@ const FlowBot = (function() {
         pool = pool.filter(item => (item.subcategory || '').startsWith(intent.adminSub + '.'));
       }
 
-      // 🔒 캠퍼스 미매칭 폴백: 캠퍼스 지정됐으면 pool을 선필터, 비면 "해당 캠퍼스 데이터 없음" 신호
-      if (intent.campus) {
+      // 🔒 캠퍼스 미매칭 폴백 — files 카테고리는 campus 필드 없음 → 제외
+      // (파일은 공통 자료라서 캠퍼스 선필터로 걸러내면 잘못된 "없음" 안내가 뜸)
+      if (intent.campus && intent.category !== 'files') {
         const campusPool = pool.filter(item =>
           item.campus === intent.campus ||
           (item.content && item.content.캠퍼스 && String(item.content.캠퍼스).includes(intent.campus))
@@ -2014,8 +2015,7 @@ const FlowBot = (function() {
     await loadConfig();
   }
 
-  return { toggle, clear, send, ask, init,
-    _debug: { searchLocal, detectIntent, formatAnswer, evaluateAnswerQuality, cleanQuery, extractCoreKeywords, handleSpecialQuery } };
+  return { toggle, clear, send, ask, init };
 })();
 
 // ==================== 시작 ====================
