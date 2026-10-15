@@ -1408,13 +1408,25 @@ const FlowBot = (function() {
 
     // 1순위: intent.category 감지된 경우 그 카테고리 내 간단 매칭
     if (intent.category && DATA[intent.category]) {
-      const keywords = q.split(/\s+/).filter(w => w.length >= 2);
-      const scored = DATA[intent.category].map(item => {
-        const text = (item.title + ' ' + (item.search_text || '')).toLowerCase();
+      // adminSub 지정된 경우 (수익코드·반형태) 해당 서브카테고리만 필터
+      let pool = DATA[intent.category];
+      if (intent.adminSub) {
+        pool = pool.filter(item => (item.subcategory || '').startsWith(intent.adminSub + '.'));
+      }
+
+      // 키워드에서 "수익코드"·"반형태" 등 메타 단어 제거 (고유번호·캠퍼스·브랜드 등 핵심만)
+      const metaWords = /수익코드|반형태|코드|고유번호|구분|담당자|내선|전화|직통|연락처|주소|위치|어디|알려줘|주세요|뭐야|무엇|어떻게/g;
+      const q2 = q.replace(metaWords, ' ').trim();
+      const keywords = q2.split(/\s+/).filter(w => w.length >= 1);
+
+      const scored = pool.map(item => {
+        const text = (item.title + ' ' + (item.search_text || '') + ' ' + JSON.stringify(item.content || {})).toLowerCase();
         let score = 0;
         keywords.forEach(kw => { if (text.includes(kw.toLowerCase())) score += 1; });
         // 캠퍼스 매칭 가중치
         if (intent.campus && item.campus === intent.campus) score += 3;
+        // 캠퍼스가 content.캠퍼스 필드에 있는 경우도 보너스 (수익코드 데이터용)
+        if (intent.campus && item.content && item.content.캠퍼스 && String(item.content.캠퍼스).includes(intent.campus)) score += 3;
         return { item, score };
       }).filter(x => x.score > 0).sort((a,b) => b.score - a.score);
       scored.slice(0, 5).forEach(x => addHit(x.item, 'intent-category'));
@@ -1471,17 +1483,25 @@ const FlowBot = (function() {
 
   // 질문 의도 감지 (키워드 기반)
   function detectIntent(q) {
-    const intent = { category: null, campus: null };
+    const intent = { category: null, campus: null, adminSub: null };
 
-    // 카테고리 힌트
-    if (/수강료|비용|가격|얼마|원/.test(q)) intent.category = 'tuition';
-    else if (/담당자|내선|전화|직통|연락처|번호|주소|위치|어디/.test(q)) intent.category = 'contacts';
+    // ⭐ admin 하위 특수 서브카테고리 우선 체크 (수익코드·반형태)
+    if (/수익코드|수익\s*구분|코드\s*번호/.test(q)) {
+      intent.category = 'admin';
+      intent.adminSub = 'Ⅳ';  // Ⅳ. 수익코드
+    } else if (/반형태|반\s*구분|고유\s*번호|관리자/.test(q)) {
+      intent.category = 'admin';
+      intent.adminSub = 'Ⅲ';  // Ⅲ. 반형태 · 수익구분
+    }
+    // 그 외 카테고리 힌트
+    else if (/수강료|비용|가격|얼마|원/.test(q)) intent.category = 'tuition';
+    else if (/담당자|내선|전화|직통|연락처|주소|위치|어디/.test(q)) intent.category = 'contacts';
     else if (/응대|스크립트|환불|클레임|문의|대응/.test(q)) intent.category = 'parent_response';
-    else if (/감탄|친절|응대 매뉴얼|CS/.test(q)) intent.category = 'cs_appreciation';
-    else if (/매뉴얼|절차|방법|어떻게|등록/.test(q)) intent.category = 'admin';
+    else if (/감탄|친절|응대 매뉴얼/.test(q)) intent.category = 'cs_appreciation';
+    else if (/매뉴얼|절차|방법|어떻게|등록|아카|비즈메카|교육청/.test(q)) intent.category = 'admin';
 
     // 캠퍼스 힌트
-    const campuses = ['이매', '수내', '수지', '광교', '영통', '정자', '본사'];
+    const campuses = ['이매', '수내', '수지', '광교', '영통', '정자', '본사', '잠실'];
     for (const c of campuses) {
       if (q.includes(c)) { intent.campus = c; break; }
     }
