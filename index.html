@@ -1330,7 +1330,7 @@ const FlowBot = (function() {
     addMsg('bot', '대화를 초기화했습니다. 새 질문을 입력해주세요.');
   }
 
-  function addMsg(role, text, sources = null, cssClass = '') {
+  function addMsg(role, text, sources = null, cssClass = '', detailItem = null) {
     const container = document.getElementById('flowBotMessages');
     const div = document.createElement('div');
     div.className = `flow-bot-msg ${role === 'user' ? 'user' : 'bot'} ${cssClass}`;
@@ -1341,6 +1341,21 @@ const FlowBot = (function() {
       srcEl.innerHTML = `<div class="flow-bot-sources-title">📚 참고 데이터</div>` +
         sources.map(s => `• ${s}`).join('<br>');
       div.appendChild(srcEl);
+    }
+    // 상세 페이지 열기 버튼 (주 매칭 결과용)
+    if (detailItem && detailItem.id) {
+      const linkEl = document.createElement('div');
+      linkEl.style.cssText = 'margin-top:10px; padding-top:8px; border-top:1px dashed var(--line);';
+      const btn = document.createElement('button');
+      btn.textContent = '📄 상세 페이지 열기';
+      btn.style.cssText = 'padding:7px 14px; background:#0f766e; color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit;';
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        goDetail(detailItem.id);
+        FlowBot.toggle(); // 챗봇 창 닫기
+      };
+      linkEl.appendChild(btn);
+      div.appendChild(linkEl);
     }
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
@@ -1375,17 +1390,14 @@ const FlowBot = (function() {
       } else if (quality === 'weak') {
         // 매칭 약함 — 결과는 보여주되 업데이트 요청 안내 함께
         const main = hits[0];
-        addMsg('bot', formatAnswer(main), hits.slice(0, 3).map(h => h.title));
+        addMsg('bot', formatAnswer(main), hits.slice(0, 3).map(h => h.title), '', main);
         showUpdateRequestPrompt(text, '검색 결과가 질문과 정확히 일치하지 않을 수 있습니다.');
       } else {
         // 품질 OK
         const main = hits[0];
-        addMsg('bot', formatAnswer(main), hits.slice(0, 3).map(h => h.title));
+        addMsg('bot', formatAnswer(main), hits.slice(0, 3).map(h => h.title), '', main);
         if (hits.length > 1) {
-          const others = hits.slice(1, 4).map((h, i) =>
-            `${i+2}. ${h.title}${h.campus ? ' ('+h.campus+')' : ''}`
-          ).join('\n');
-          addMsg('bot', `📋 다른 관련 결과 ${hits.length-1}건:\n${others}\n\n필요한 항목을 더 구체적으로 질문해주세요.`, null, 'other-hits');
+          showOtherHits(hits.slice(1, 4));
         }
       }
     } catch (err) {
@@ -1442,6 +1454,54 @@ const FlowBot = (function() {
     linkBtn.style.cssText = 'display:inline-block; margin-top:10px; padding:8px 14px; background:#0f766e; color:white; border-radius:8px; text-decoration:none; font-weight:600; font-size:12px;';
     el.appendChild(document.createElement('br'));
     el.appendChild(linkBtn);
+  }
+
+  // 다른 관련 결과 리스트 (각 항목 클릭 가능)
+  function showOtherHits(hits) {
+    const container = document.getElementById('flowBotMessages');
+    const div = document.createElement('div');
+    div.className = 'flow-bot-msg bot other-hits';
+
+    const titleEl = document.createElement('div');
+    titleEl.textContent = `📋 다른 관련 결과 ${hits.length}건:`;
+    titleEl.style.cssText = 'font-weight:600; margin-bottom:8px;';
+    div.appendChild(titleEl);
+
+    hits.forEach((item, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 8px; margin:4px 0; background:var(--bg); border-radius:8px; cursor:pointer; transition:background 0.15s;';
+      row.onmouseenter = () => { row.style.background = '#dcf1ed'; };
+      row.onmouseleave = () => { row.style.background = 'var(--bg)'; };
+      row.onclick = () => {
+        goDetail(item.id);
+        FlowBot.toggle();
+      };
+
+      const num = document.createElement('span');
+      num.textContent = `${i+2}.`;
+      num.style.cssText = 'color:var(--muted); font-weight:600; min-width:16px;';
+      row.appendChild(num);
+
+      const info = document.createElement('span');
+      info.textContent = `${item.title}${item.campus ? ' ('+item.campus+')' : ''}`;
+      info.style.cssText = 'flex:1;';
+      row.appendChild(info);
+
+      const arrow = document.createElement('span');
+      arrow.textContent = '→';
+      arrow.style.cssText = 'color:#0f766e; font-weight:700;';
+      row.appendChild(arrow);
+
+      div.appendChild(row);
+    });
+
+    const hint = document.createElement('div');
+    hint.textContent = '클릭하면 상세 페이지로 이동합니다.';
+    hint.style.cssText = 'font-size:10.5px; color:var(--muted); margin-top:6px;';
+    div.appendChild(hint);
+
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
   }
 
   // 결과는 있지만 품질 약할 때 추가 안내
