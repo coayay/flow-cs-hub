@@ -1900,7 +1900,8 @@ const FlowBot = (function() {
     await loadConfig();
   }
 
-  return { toggle, clear, send, ask, init };
+  return { toggle, clear, send, ask, init,
+    _debug: { searchLocal, detectIntent, formatAnswer, evaluateAnswerQuality, cleanQuery, extractCoreKeywords } };
 })();
 
 // ==================== 시작 ====================
