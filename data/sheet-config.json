@@ -3,5 +3,7 @@
   "sheet_id": "1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU",
   "contacts_csv_url": "https://docs.google.com/spreadsheets/d/1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU/export?format=csv&gid=0",
   "tuition_csv_url": "https://docs.google.com/spreadsheets/d/1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU/export?format=csv&gid=2106301632",
+  "files_csv_url": "",
+  "files_sheet_note": "「행정자료」 탭 만든 뒤 export URL 넣기. 비면 data/files.json 사용",
   "cache_bust": true
 }

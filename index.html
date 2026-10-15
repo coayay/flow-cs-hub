@@ -712,6 +712,24 @@ function csvToTuition(rows) {
   });
 }
 
+/* CSV → 행정자료 */
+function csvToFiles(rows) {
+  return rows.filter(r => (r['파일명'] || r.title)).map((r, idx) => {
+    const title = r['파일명'] || r.title || '';
+    return {
+      id: r.id || ('file-sheet-' + idx),
+      title: title,
+      category: r['분류'] || r.category || '행정자료',
+      description: r['설명'] || r.description || '',
+      drive_url: r['드라이브 링크'] || r['링크'] || r.drive_url || '',
+      download_url: r['다운로드 링크'] || r.download_url || '',
+      updated: r['수정일'] || r.updated || '',
+      keywords: r['키워드'] || r.keywords || '',
+      _source: 'google-sheet',
+    };
+  });
+}
+
 /* Google Sheet CSV 로드 (실패 시 null) */
 async function fetchSheetCSV(url) {
   if (!url || !/^https?:\/\//.test(url)) return null;
@@ -739,24 +757,28 @@ async function loadData() {
   } catch {}
 
   const bust = '?_ts=' + Math.floor(Date.now() / 60000);
-  const [c_local, t_local, a, pr, ca, cg, m, c_sheet, t_sheet] = await Promise.all([
+  const [c_local, t_local, a, pr, ca, cg, files_local, m, c_sheet, t_sheet, files_sheet] = await Promise.all([
     fetch('data/contacts.json' + bust).then(r => r.json()),
     fetch('data/tuition.json' + bust).then(r => r.json()),
     fetch('data/admin.json' + bust).then(r => r.json()),
     fetch('data/parent-response.json' + bust).then(r => r.json()).catch(() => []),
     fetch('data/cs-appreciation.json' + bust).then(r => r.json()).catch(() => []),
     fetch('data/campus-guide.json' + bust).then(r => r.json()).catch(() => []),
+    fetch('data/files.json' + bust).then(r => r.json()).catch(() => []),
     fetch('data/meta.json' + bust).then(r => r.json()),
     fetchSheetCSV(sheetConfig.contacts_csv_url),
     fetchSheetCSV(sheetConfig.tuition_csv_url),
+    fetchSheetCSV(sheetConfig.files_csv_url),
   ]);
 
   // 시트 데이터 있으면 우선 사용, 없으면 로컬
   const c = (c_sheet && c_sheet.length) ? csvToContacts(c_sheet) : c_local;
   const t = (t_sheet && t_sheet.length) ? csvToTuition(t_sheet) : t_local;
+  const files = (files_sheet && files_sheet.length) ? csvToFiles(files_sheet) : files_local;
 
   DATA.contacts = c; DATA.tuition = t; DATA.admin = a;
-  DATA.parent_response = pr; DATA.cs_appreciation = ca; DATA.campus_guide = cg; DATA.meta = m;
+  DATA.parent_response = pr; DATA.cs_appreciation = ca; DATA.campus_guide = cg;
+  DATA.files = files; DATA.meta = m;
 
   // 데이터 소스 배지
   const sourceInfo = document.getElementById('sourceInfo');
@@ -1126,7 +1148,14 @@ function renderCard(item) {
 
 // ==================== 상세 뷰어 ====================
 function allItems() {
-  return [...DATA.contacts, ...DATA.tuition, ...DATA.admin, ...DATA.parent_response, ...DATA.cs_appreciation, ...DATA.campus_guide];
+  const files = (DATA.files||[]).map(f => ({
+    id: f.id, category: 'files', subcategory: f.category || '행정자료',
+    title: f.title, content: f.description || '',
+    search_text: [f.title, f.description, f.category, f.keywords].filter(Boolean).join(' '),
+    tags: [f.category, '행정자료', '파일', '다운로드'].filter(Boolean),
+    drive_url: f.drive_url, download_url: f.download_url,
+  }));
+  return [...DATA.contacts, ...DATA.tuition, ...DATA.admin, ...DATA.parent_response, ...DATA.cs_appreciation, ...DATA.campus_guide, ...files];
 }
 
 /* 간단 마크다운 렌더러 */
@@ -1373,16 +1402,43 @@ const FlowBot = (function() {
     // 상세 페이지 열기 버튼 (주 매칭 결과용)
     if (detailItem && detailItem.id) {
       const linkEl = document.createElement('div');
-      linkEl.style.cssText = 'margin-top:10px; padding-top:8px; border-top:1px dashed var(--line);';
-      const btn = document.createElement('button');
-      btn.textContent = '📄 상세 페이지 열기';
-      btn.style.cssText = 'padding:7px 14px; background:#0f766e; color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit;';
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        goDetail(detailItem.id);
-        FlowBot.toggle(); // 챗봇 창 닫기
-      };
-      linkEl.appendChild(btn);
+      linkEl.style.cssText = 'margin-top:10px; padding-top:8px; border-top:1px dashed var(--line); display:flex; gap:6px; flex-wrap:wrap;';
+
+      // 파일 카테고리: 다운로드 + Drive 열기 버튼 우선
+      if (detailItem.category === 'files' && (detailItem.drive_url || detailItem.download_url)) {
+        if (detailItem.download_url) {
+          const dl = document.createElement('a');
+          dl.href = detailItem.download_url; dl.target = '_blank'; dl.rel = 'noopener';
+          dl.textContent = '📥 바로 다운로드';
+          dl.style.cssText = 'padding:7px 14px; background:#0f766e; color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit; text-decoration:none; display:inline-block;';
+          linkEl.appendChild(dl);
+        }
+        if (detailItem.drive_url) {
+          const open = document.createElement('a');
+          open.href = detailItem.drive_url; open.target = '_blank'; open.rel = 'noopener';
+          open.textContent = '🔗 구글 드라이브 열기';
+          open.style.cssText = 'padding:7px 14px; background:#1a73e8; color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit; text-decoration:none; display:inline-block;';
+          linkEl.appendChild(open);
+        }
+        // 링크가 REPLACE_ME거나 비어 있으면 안내
+        const urls = (detailItem.drive_url + ' ' + (detailItem.download_url||''));
+        if (urls.includes('REPLACE_ME') || (!detailItem.drive_url && !detailItem.download_url)) {
+          const warn = document.createElement('div');
+          warn.textContent = '⚠️ 드라이브 링크 등록 대기 중 — 구글 시트 「행정자료」 탭에서 링크를 입력해주세요';
+          warn.style.cssText = 'width:100%; margin-top:6px; font-size:11px; color:#b45309; background:#fef3c7; padding:6px 10px; border-radius:8px;';
+          linkEl.appendChild(warn);
+        }
+      } else {
+        const btn = document.createElement('button');
+        btn.textContent = '📄 상세 페이지 열기';
+        btn.style.cssText = 'padding:7px 14px; background:#0f766e; color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit;';
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          goDetail(detailItem.id);
+          FlowBot.toggle(); // 챗봇 창 닫기
+        };
+        linkEl.appendChild(btn);
+      }
       div.appendChild(linkEl);
     }
     container.appendChild(div);
@@ -1566,6 +1622,10 @@ const FlowBot = (function() {
     if (intent.category && DATA[intent.category]) {
       // adminSub 지정된 경우 (수익코드·반형태) 해당 서브카테고리만 필터
       let pool = DATA[intent.category];
+      // files 카테고리는 allItems 변환 형태로 사용 (drive_url 등 메타 유지)
+      if (intent.category === 'files') {
+        pool = allItems().filter(x => x.category === 'files');
+      }
       if (intent.adminSub) {
         pool = pool.filter(item => (item.subcategory || '').startsWith(intent.adminSub + '.'));
       }
@@ -1641,8 +1701,12 @@ const FlowBot = (function() {
   function detectIntent(q) {
     const intent = { category: null, campus: null, adminSub: null };
 
+    // ⭐ 파일/행정자료 다운로드 요청 (최우선)
+    if (/파일|자료\s*(다운|주세요|찾)|다운\s*(로드|받)|사업자등록|사업자\s*등록|증빙|양식|템플릿|로고|CI|BI|심볼|서식|업로드|문서\s*파일|PDF|엑셀\s*파일|한글\s*파일|다운받/.test(q)) {
+      intent.category = 'files';
+    }
     // ⭐ admin 하위 특수 서브카테고리 우선 체크 (수익코드·반형태)
-    if (/수익코드|수익\s*구분|코드\s*번호/.test(q)) {
+    else if (/수익코드|수익\s*구분|코드\s*번호/.test(q)) {
       intent.category = 'admin';
       intent.adminSub = 'Ⅳ';  // Ⅳ. 수익코드
     } else if (/반형태|반\s*구분|고유\s*번호|관리자/.test(q)) {
@@ -1676,7 +1740,17 @@ const FlowBot = (function() {
     if (cat === 'parent_response' || cat === 'parent-response') return formatParentResponse(item, c);
     if (cat === 'cs_appreciation' || cat === 'cs-appreciation') return formatCSAppreciation(item, c);
     if (cat === 'campus_guide' || cat === 'campus-guide') return formatCampusGuide(item, c);
+    if (cat === 'files') return formatFile(item);
     return `${item.title}\n\n${Object.entries(c).filter(([k,v])=>v).map(([k,v])=>`${k}: ${v}`).join('\n')}`;
+  }
+
+  function formatFile(item) {
+    const lines = [];
+    lines.push(`📄 ${item.title}`);
+    if (item.subcategory) lines.push(`🏷️ ${item.subcategory}`);
+    if (item.content) lines.push('');
+    if (item.content) lines.push(item.content);
+    return lines.join('\n');
   }
 
   function formatContact(item, c) {

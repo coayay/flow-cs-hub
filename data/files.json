@@ -1,0 +1,32 @@
+[
+  {
+    "id": "file-biz-license",
+    "title": "플로우교육 사업자등록증",
+    "category": "법인/증빙",
+    "description": "플로우교육(주) 법인 사업자등록증 (최신본)",
+    "drive_url": "https://drive.google.com/drive/folders/REPLACE_ME",
+    "download_url": "",
+    "updated": "2026-10-15",
+    "keywords": "사업자등록증·사업자등록·법인등록·세금계산서·증빙·등록증"
+  },
+  {
+    "id": "file-ci",
+    "title": "수학의아침 CI 로고",
+    "category": "브랜드",
+    "description": "수학의아침 공식 로고·심볼 (AI·PNG)",
+    "drive_url": "https://drive.google.com/drive/folders/REPLACE_ME",
+    "download_url": "",
+    "updated": "2026-10-15",
+    "keywords": "CI·로고·심볼·브랜드·BI·엠블럼"
+  },
+  {
+    "id": "file-shuttle-form",
+    "title": "이매 지입셔틀 수수료 품의 양식",
+    "category": "품의 양식",
+    "description": "매월 이매 지입셔틀(23·24·25호) 수수료 품의서 템플릿 (3.3% gross-up 반영)",
+    "drive_url": "https://drive.google.com/drive/folders/REPLACE_ME",
+    "download_url": "",
+    "updated": "2026-10-15",
+    "keywords": "셔틀·지입·수수료·품의·이매·양식·템플릿"
+  }
+]
