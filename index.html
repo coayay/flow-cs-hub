@@ -1025,6 +1025,12 @@ function renderHome() {
           <div class="desc">클릭하여 탐색</div>
         </div>
       `).join('')}
+      <div class="dash-card" onclick="window.open('https://drive.google.com/drive/u/0/folders/0AIeIq_IZfPiqUk9PVA','_blank','noopener')" style="cursor:pointer;">
+        <div class="icon">📁</div>
+        <h3>CS 행정자료</h3>
+        <div class="count">${(DATA.files||[]).length}건</div>
+        <div class="desc">구글 드라이브 열기 ↗</div>
+      </div>
     </div>
 
     <h3 style="margin: 24px 0 12px; font-size: 16px;">📌 빠른 접근</h3>
@@ -1406,15 +1412,8 @@ const FlowBot = (function() {
       const linkEl = document.createElement('div');
       linkEl.style.cssText = 'margin-top:10px; padding-top:8px; border-top:1px dashed var(--line); display:flex; gap:6px; flex-wrap:wrap;';
 
-      // 파일 카테고리: 다운로드 + Drive 열기 버튼 우선
+      // 파일 카테고리: Drive 열기 버튼만 (다운로드는 Drive에서 수행)
       if (detailItem.category === 'files' && (detailItem.drive_url || detailItem.download_url)) {
-        if (detailItem.download_url) {
-          const dl = document.createElement('a');
-          dl.href = detailItem.download_url; dl.target = '_blank'; dl.rel = 'noopener';
-          dl.textContent = '📥 바로 다운로드';
-          dl.style.cssText = 'padding:7px 14px; background:#0f766e; color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit; text-decoration:none; display:inline-block;';
-          linkEl.appendChild(dl);
-        }
         if (detailItem.drive_url) {
           const open = document.createElement('a');
           open.href = detailItem.drive_url; open.target = '_blank'; open.rel = 'noopener';
@@ -1423,8 +1422,8 @@ const FlowBot = (function() {
           linkEl.appendChild(open);
         }
         // 링크가 REPLACE_ME거나 비어 있으면 안내
-        const urls = (detailItem.drive_url + ' ' + (detailItem.download_url||''));
-        if (urls.includes('REPLACE_ME') || (!detailItem.drive_url && !detailItem.download_url)) {
+        const urls = (detailItem.drive_url || '');
+        if (urls.includes('REPLACE_ME') || !detailItem.drive_url) {
           const warn = document.createElement('div');
           warn.textContent = '⚠️ 드라이브 링크 등록 대기 중 — 구글 시트 「행정자료」 탭에서 링크를 입력해주세요';
           warn.style.cssText = 'width:100%; margin-top:6px; font-size:11px; color:#b45309; background:#fef3c7; padding:6px 10px; border-radius:8px;';
