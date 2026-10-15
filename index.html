@@ -497,15 +497,14 @@ body {
     color: white; padding: 14px 16px;
     display: flex; align-items: center; justify-content: space-between;
   }
-  .flow-bot-header-title { font-weight: 700; font-size: 15px; }
-  .flow-bot-header-sub { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+  .flow-bot-header-title { font-weight: 700; font-size: 14px; }
   .flow-bot-messages {
-    flex: 1; overflow-y: auto; padding: 16px;
-    background: var(--bg); display: flex; flex-direction: column; gap: 12px;
+    flex: 1; overflow-y: auto; padding: 14px;
+    background: var(--bg); display: flex; flex-direction: column; gap: 10px;
   }
   .flow-bot-msg {
-    max-width: 85%; padding: 10px 14px; border-radius: 12px;
-    font-size: 14px; line-height: 1.6; word-break: break-word;
+    max-width: 85%; padding: 9px 12px; border-radius: 12px;
+    font-size: 12.5px; line-height: 1.55; word-break: break-word;
     white-space: pre-wrap;
   }
   .flow-bot-msg.user {
@@ -520,33 +519,23 @@ body {
   .flow-bot-msg.error { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
   .flow-bot-sources {
     margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line);
-    font-size: 11px; color: var(--muted);
+    font-size: 10.5px; color: var(--muted);
   }
   .flow-bot-sources-title { font-weight: 600; margin-bottom: 4px; }
-  .flow-bot-suggestions {
-    padding: 8px 12px; background: white; border-top: 1px solid var(--line);
-    display: flex; gap: 6px; flex-wrap: wrap;
-  }
-  .flow-bot-suggest-chip {
-    padding: 6px 10px; border: 1px solid var(--line); border-radius: 16px;
-    font-size: 11px; cursor: pointer; background: var(--bg);
-    transition: all 0.15s;
-  }
-  .flow-bot-suggest-chip:hover { background: #0f766e; color: white; border-color: #0f766e; }
   .flow-bot-input-area {
     padding: 12px; border-top: 1px solid var(--line); background: white;
     display: flex; gap: 8px;
   }
   .flow-bot-input {
-    flex: 1; padding: 10px 14px; border: 1px solid var(--line);
-    border-radius: 20px; font-size: 14px; outline: none;
+    flex: 1; padding: 9px 13px; border: 1px solid var(--line);
+    border-radius: 20px; font-size: 13px; outline: none;
     font-family: inherit;
   }
   .flow-bot-input:focus { border-color: #0f766e; }
   .flow-bot-send {
-    padding: 10px 16px; background: #0f766e; color: white;
+    padding: 9px 15px; background: #0f766e; color: white;
     border: none; border-radius: 20px; font-weight: 600;
-    cursor: pointer; font-size: 14px;
+    cursor: pointer; font-size: 13px;
   }
   .flow-bot-send:disabled { background: #9ca3af; cursor: not-allowed; }
 </style>
@@ -555,20 +544,10 @@ body {
 <button id="flow-bot-fab" onclick="FlowBot.toggle()" title="Flow 챗봇">💬</button>
 <div id="flow-bot-window">
   <div class="flow-bot-header">
-    <div>
-      <div class="flow-bot-header-title">🤖 Flow 챗봇</div>
-      <div class="flow-bot-header-sub">실장님 전용 · 즉시 검색</div>
-    </div>
-    <button onclick="FlowBot.clear()" title="대화 초기화" style="background:transparent;border:none;color:white;cursor:pointer;font-size:16px;">↻</button>
+    <div class="flow-bot-header-title">🤖 Flow 챗봇</div>
+    <button onclick="FlowBot.clear()" title="대화 초기화" style="background:transparent;border:none;color:white;cursor:pointer;font-size:15px;">↻</button>
   </div>
   <div class="flow-bot-messages" id="flowBotMessages"></div>
-  <div class="flow-bot-suggestions" id="flowBotSuggestions">
-    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('광교 중등관 주소 알려줘')">광교 중등관 주소</span>
-    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('본사 인사기획팀 담당자 내선')">본사 인사팀 내선</span>
-    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('수내 초등관 주3회 수강료')">수내 초등 주3회</span>
-    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('학부모 환불 요청 응대 스크립트')">환불 응대</span>
-    <span class="flow-bot-suggest-chip" onclick="FlowBot.ask('수지 고등관 담당자 알려줘')">수지 고등 담당자</span>
-  </div>
   <div class="flow-bot-input-area">
     <input type="text" class="flow-bot-input" id="flowBotInput" placeholder="질문을 입력하세요..." onkeydown="if(event.key==='Enter')FlowBot.send()">
     <button class="flow-bot-send" id="flowBotSend" onclick="FlowBot.send()">전송</button>
