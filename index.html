@@ -941,7 +941,7 @@ function renderSidebar() {
     <button class="sidebar-close" onclick="closeSidebar()" aria-label="메뉴 닫기">✕</button>
     <div class="sidebar-section">
       <div class="sidebar-item ${isHomeActive}" onclick="goHome()">📍 홈</div>
-      <div class="sidebar-item" onclick="window.open('https://drive.google.com/drive/u/0/folders/0AIeIq_IZfPiqUk9PVA','_blank','noopener')">
+      <div class="sidebar-item" onclick="window.open('https://drive.google.com/drive/folders/18EmHVzVXSDsZWph5wWFxAqS3WJ5OUq4b','_blank','noopener')">
         📁 CS 행정자료 <span class="sidebar-count">${(DATA.files||[]).length}</span>
       </div>
     </div>
@@ -1045,7 +1045,7 @@ function renderHome() {
           <div class="desc">클릭하여 탐색</div>
         </div>
       `).join('')}
-      <div class="dash-card" onclick="window.open('https://drive.google.com/drive/u/0/folders/0AIeIq_IZfPiqUk9PVA','_blank','noopener')" style="cursor:pointer;">
+      <div class="dash-card" onclick="window.open('https://drive.google.com/drive/folders/18EmHVzVXSDsZWph5wWFxAqS3WJ5OUq4b','_blank','noopener')" style="cursor:pointer;">
         <div class="icon">📁</div>
         <h3>CS 행정자료</h3>
         <div class="count">${(DATA.files||[]).length}건</div>

@@ -24,11 +24,11 @@
 // ====== 설정 ======
 const DRIVE_CONFIG = {
   // 공유 드라이브 ID (0A로 시작) 또는 일반 폴더 ID (1로 시작)
-  // 공유 드라이브 「CS 행정 자료」 ID:
-  DRIVE_ID: '0AIeIq_IZfPiqUk9PVA',
+  // 「컴퓨터 > 03_CS상담플랫폼 > 자료 > CS 행정 자료」 폴더 (2026-10-15 이동, 플로우교육 그룹 뷰어 공유)
+  DRIVE_ID: '18EmHVzVXSDsZWph5wWFxAqS3WJ5OUq4b',
 
-  // 공유 드라이브 전체 스캔 시 true, 특정 하위 폴더만 스캔 시 false
-  IS_SHARED_DRIVE: true,
+  // 공유 드라이브 전체 스캔 시 true, 일반 폴더 스캔 시 false
+  IS_SHARED_DRIVE: false,
 
   // 결과 기록 시트 이름
   SHEET_NAME: '행정자료',
