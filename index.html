@@ -520,9 +520,9 @@ body {
     animation: none;
     width: 56px; height: 56px;
   }
-  /* AI 뱃지 */
+  /* AI 뱃지 (FAB 기준 좌표) */
   #flow-bot-fab-badge {
-    position: absolute; top: -4px; right: -4px; z-index: 1000;
+    position: fixed; bottom: 70px; right: 18px; z-index: 1000;
     background: linear-gradient(135deg, #d9b66f, #b8860b);
     color: #1f2937; font-size: 9px; font-weight: 800;
     padding: 3px 7px; border-radius: 10px;
@@ -530,8 +530,8 @@ body {
     border: 2px solid white;
     letter-spacing: 0.5px;
     pointer-events: none;
+    animation: flow-bot-float 3.5s ease-in-out infinite;
   }
-  #flow-bot-fab.active ~ #flow-bot-fab-badge { display: none; }
 
   /* 챗봇 창 */
   #flow-bot-window {
