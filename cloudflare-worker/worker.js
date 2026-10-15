@@ -13,6 +13,7 @@
 const ANTHROPIC_VERSION = '2023-06-01';
 const DEFAULT_MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 1024;
+const WORKSPACE_ID = 'wrkspc_011bMceL7W4DcLegyMuYMbVy';  // Default workspace (Flow CS Hub)
 
 export default {
   async fetch(request, env, ctx) {
@@ -45,14 +46,28 @@ export default {
         return jsonResponse({ error: 'messages array required' }, 400, allowedOrigin);
       }
 
+      if (!env.ANTHROPIC_API_KEY) {
+        return jsonResponse({ error: 'ANTHROPIC_API_KEY not set' }, 500, allowedOrigin);
+      }
+
       // Anthropic API 호출
+      // Workspace-scoped service account key는 workspace-id 헤더 불필요
+      // Organization-scoped key(sk-ant-usr-)만 workspace-id 필요
+      const needsWorkspaceId = env.ANTHROPIC_API_KEY.startsWith('sk-ant-usr-')
+                             || env.ANTHROPIC_API_KEY.startsWith('sk-ant-adm-');
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': env.ANTHROPIC_API_KEY,
+        'anthropic-version': ANTHROPIC_VERSION,
+        'User-Agent': 'FlowCSHubProxy/1.0 (Cloudflare Worker)',
+      };
+      if (needsWorkspaceId) {
+        headers['anthropic-workspace-id'] = WORKSPACE_ID;
+      }
+
       const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': ANTHROPIC_VERSION,
-        },
+        headers,
         body: JSON.stringify({
           model: model || DEFAULT_MODEL,
           max_tokens: max_tokens || MAX_TOKENS,
@@ -66,7 +81,7 @@ export default {
 
       if (!anthropicRes.ok) {
         return jsonResponse(
-          { error: 'Anthropic API error', detail: data },
+          { error: 'Anthropic API error', status: anthropicRes.status, detail: data },
           anthropicRes.status,
           allowedOrigin
         );

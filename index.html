@@ -84,7 +84,17 @@ body {
   padding: 8px 20px;
   font-size: 11px; font-weight: 800; letter-spacing: 0.1em;
   color: var(--muted); text-transform: uppercase;
+  cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 6px;
+  transition: color 0.1s;
 }
+.sidebar-title:hover { color: var(--accent); }
+.sidebar-title .caret {
+  display: inline-block; font-size: 10px; width: 10px;
+  transition: transform 0.15s;
+}
+.sidebar-section.collapsed .caret { transform: rotate(-90deg); }
+.sidebar-section.collapsed .sidebar-item.sub { display: none; }
 .sidebar-item {
   padding: 8px 20px; cursor: pointer;
   color: var(--ink); font-size: 14px;
@@ -536,8 +546,8 @@ body {
   /* 챗봇 창 */
   #flow-bot-window {
     position: fixed; right: 24px; bottom: 96px; z-index: 998;
-    width: 540px; height: 760px;
-    max-width: calc(100vw - 48px); max-height: calc(100vh - 120px);
+    width: 560px; height: calc(100vh - 130px); max-height: 900px;
+    max-width: calc(100vw - 48px);
     background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
     display: none; flex-direction: column; overflow: hidden;
     border: 1px solid var(--line);
@@ -831,12 +841,30 @@ function renderRoute() {
 window.addEventListener('hashchange', renderRoute);
 
 // ==================== 사이드바 ====================
+// 사이드바 섹션 접기/펼치기 상태 (기본: 모두 접힘, 활성 카테고리는 자동 펼침)
+window.SIDEBAR_OPEN = window.SIDEBAR_OPEN || (() => {
+  try {
+    const saved = localStorage.getItem('flowcs_sidebar_open');
+    if (saved) return JSON.parse(saved);
+  } catch(e){}
+  return {};
+})();
+function toggleSidebarSection(key) {
+  window.SIDEBAR_OPEN[key] = !window.SIDEBAR_OPEN[key];
+  try { localStorage.setItem('flowcs_sidebar_open', JSON.stringify(window.SIDEBAR_OPEN)); } catch(e){}
+  renderSidebar();
+}
 function renderSidebar() {
   const sb = document.getElementById('sidebar');
   if (!DATA.meta) return;
   const active = (cat, sub=null) =>
     CURRENT.category === cat && (sub === null || CURRENT.subcategory === sub) ? 'active' : '';
   const isHomeActive = CURRENT.page === 'home' ? 'active' : '';
+  // 활성 섹션은 자동 펼침
+  const secClass = (key) => {
+    const open = window.SIDEBAR_OPEN[key] === true || CURRENT.category === key;
+    return 'sidebar-section' + (open ? '' : ' collapsed');
+  };
 
   // 캠퍼스별 그룹핑 (본사 포함)
   const campusCounts = {};
@@ -874,8 +902,8 @@ function renderSidebar() {
       <div class="sidebar-item ${isHomeActive}" onclick="goHome()">📍 홈</div>
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-title">🏢 캠퍼스 정보</div>
+    <div class="${secClass('contacts')}">
+      <div class="sidebar-title" onclick="toggleSidebarSection('contacts')"><span class="caret">▼</span> 🏢 캠퍼스 정보</div>
       <div class="sidebar-item ${CURRENT.category==='contacts' && !CURRENT.subcategory ? 'active' : ''}"
            onclick="goCategory('contacts')">전체 <span class="sidebar-count">${campusTotal}</span></div>
       ${DATA.meta.campuses.map(c => `
@@ -886,8 +914,8 @@ function renderSidebar() {
     </div>
 
 
-    <div class="sidebar-section">
-      <div class="sidebar-title">💰 수강료 (26년)</div>
+    <div class="${secClass('tuition')}">
+      <div class="sidebar-title" onclick="toggleSidebarSection('tuition')"><span class="caret">▼</span> 💰 수강료 (26년)</div>
       <div class="sidebar-item ${CURRENT.category==='tuition' && !CURRENT.subcategory ? 'active' : ''}"
            onclick="goCategory('tuition')">전체 <span class="sidebar-count">${DATA.tuition.length}</span></div>
       ${tuitionSubs.map(s => `
@@ -897,8 +925,8 @@ function renderSidebar() {
       `).join('')}
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-title">📖 행정 매뉴얼</div>
+    <div class="${secClass('admin')}">
+      <div class="sidebar-title" onclick="toggleSidebarSection('admin')"><span class="caret">▼</span> 📖 행정 매뉴얼</div>
       <div class="sidebar-item ${CURRENT.category==='admin' && !CURRENT.subcategory ? 'active' : ''}"
            onclick="goCategory('admin')">전체 <span class="sidebar-count">${DATA.admin.length}</span></div>
       ${adminSubs.map(s => `
@@ -908,8 +936,8 @@ function renderSidebar() {
       `).join('')}
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-title">💬 학부모 응대 매뉴얼</div>
+    <div class="${secClass('parent_response')}">
+      <div class="sidebar-title" onclick="toggleSidebarSection('parent_response')"><span class="caret">▼</span> 💬 학부모 응대 매뉴얼</div>
       <div class="sidebar-item ${CURRENT.category==='parent_response' && !CURRENT.subcategory ? 'active' : ''}"
            onclick="goCategory('parent_response')">전체 <span class="sidebar-count">${DATA.parent_response.length}</span></div>
       ${prSubs.map(s => `
@@ -919,8 +947,8 @@ function renderSidebar() {
       `).join('')}
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-title">⭐ CS 감탄 매뉴얼</div>
+    <div class="${secClass('cs_appreciation')}">
+      <div class="sidebar-title" onclick="toggleSidebarSection('cs_appreciation')"><span class="caret">▼</span> ⭐ CS 감탄 매뉴얼</div>
       <div class="sidebar-item ${CURRENT.category==='cs_appreciation' && !CURRENT.subcategory ? 'active' : ''}"
            onclick="goCategory('cs_appreciation')">전체 <span class="sidebar-count">${DATA.cs_appreciation.length}</span></div>
       ${caSubs.map(s => `
@@ -930,8 +958,8 @@ function renderSidebar() {
       `).join('')}
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-title">🏫 캠퍼스별 상담자료</div>
+    <div class="${secClass('campus_guide')}">
+      <div class="sidebar-title" onclick="toggleSidebarSection('campus_guide')"><span class="caret">▼</span> 🏫 캠퍼스별 상담자료</div>
       <div class="sidebar-item ${CURRENT.category==='campus_guide' && !CURRENT.subcategory ? 'active' : ''}"
            onclick="goCategory('campus_guide')">전체 <span class="sidebar-count">${DATA.campus_guide.length}</span></div>
       ${cgSubs.map(s => `
