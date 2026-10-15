@@ -716,8 +716,9 @@ function csvToTuition(rows) {
 function csvToFiles(rows) {
   return rows.filter(r => (r['파일명'] || r.title)).map((r, idx) => {
     const title = r['파일명'] || r.title || '';
+    const fileId = r['파일ID'] || r.file_id || '';
     return {
-      id: r.id || ('file-sheet-' + idx),
+      id: fileId ? ('file-' + fileId) : (r.id || ('file-sheet-' + idx)),
       title: title,
       category: r['분류'] || r.category || '행정자료',
       description: r['설명'] || r.description || '',
@@ -725,6 +726,7 @@ function csvToFiles(rows) {
       download_url: r['다운로드 링크'] || r.download_url || '',
       updated: r['수정일'] || r.updated || '',
       keywords: r['키워드'] || r.keywords || '',
+      file_type: r['파일 종류'] || r.file_type || '',
       _source: 'google-sheet',
     };
   });
@@ -1746,10 +1748,17 @@ const FlowBot = (function() {
 
   function formatFile(item) {
     const lines = [];
+    // DATA.files 원본에서 추가 메타 조회
+    const raw = (DATA.files || []).find(f => f.id === item.id || ('file-' + (f.id || '')) === item.id);
+    const fileType = raw && raw.file_type ? raw.file_type : '';
+    const updated = raw && raw.updated ? raw.updated : '';
     lines.push(`📄 ${item.title}`);
-    if (item.subcategory) lines.push(`🏷️ ${item.subcategory}`);
-    if (item.content) lines.push('');
-    if (item.content) lines.push(item.content);
+    const meta = [];
+    if (item.subcategory) meta.push(`🏷️ ${item.subcategory}`);
+    if (fileType) meta.push(`📎 ${fileType}`);
+    if (updated) meta.push(`📅 ${updated}`);
+    if (meta.length) lines.push(meta.join('  ·  '));
+    if (item.content) { lines.push(''); lines.push(item.content); }
     return lines.join('\n');
   }
 
