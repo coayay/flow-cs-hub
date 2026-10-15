@@ -712,15 +712,32 @@ function csvToTuition(rows) {
   });
 }
 
-/* CSV → 행정자료 */
+/* CSV → 행정자료 (id 안정화 + 열명 검증) */
 function csvToFiles(rows) {
+  if (!rows || !rows.length) return [];
+  // 열명 검증: 필수 컬럼 하나라도 없으면 콘솔 경고 (조용한 실패 방지)
+  const sample = rows[0] || {};
+  const expected = ['파일명','분류','드라이브 링크'];
+  const missing = expected.filter(k => !(k in sample) && !(sample.title || sample.drive_url));
+  if (missing.length) {
+    console.warn('[csvToFiles] 「행정자료」 시트 필수 컬럼 누락: ' + missing.join(', ') + ' — 시트 헤더(1행)를 확인하세요.');
+  }
+  // 간단 해시 (파일ID 없을 때 title+category 기반 안정적 id)
+  const hashStr = s => {
+    let h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+    return Math.abs(h).toString(36);
+  };
   return rows.filter(r => (r['파일명'] || r.title)).map((r, idx) => {
     const title = r['파일명'] || r.title || '';
     const fileId = r['파일ID'] || r.file_id || '';
+    const category = r['분류'] || r.category || '행정자료';
+    // id 우선순위: 파일ID > 기존 id > title+category hash (행 순서 바뀌어도 북마크 유지)
+    const stableId = fileId ? ('file-' + fileId)
+                   : (r.id || ('file-h-' + hashStr(title + '|' + category)));
     return {
-      id: fileId ? ('file-' + fileId) : (r.id || ('file-sheet-' + idx)),
+      id: stableId,
       title: title,
-      category: r['분류'] || r.category || '행정자료',
+      category: category,
       description: r['설명'] || r.description || '',
       drive_url: r['드라이브 링크'] || r['링크'] || r.drive_url || '',
       download_url: r['다운로드 링크'] || r.download_url || '',
@@ -806,7 +823,7 @@ async function loadData() {
     ],
     threshold: 0.35,      // 0(엄격) ~ 1(관대). 오타 허용도
     ignoreLocation: true, // 문장 위치 무관
-    minMatchCharLength: 1,
+    minMatchCharLength: 2,
     includeScore: true,
   });
 
@@ -1039,10 +1056,10 @@ function renderHome() {
     <h3 style="margin: 24px 0 12px; font-size: 16px;">📌 빠른 접근</h3>
     <div class="grid">
       ${DATA.contacts.filter(x=>x.subcategory==='캠퍼스 대표').map(c => `
-        <div class="card" onclick="goDetail('${c.id}')">
+        <div class="card" onclick="goDetail('${escapeAttr(c.id)}')">
           <div class="card-tag">캠퍼스 대표</div>
-          <div class="card-title">${c.title}</div>
-          <div class="card-body">📞 ${c.content.직통번호 || c.content.대표번호 || '-'}</div>
+          <div class="card-title">${escapeHtml(c.title)}</div>
+          <div class="card-body">📞 ${escapeHtml(c.content.직통번호 || c.content.대표번호 || '-')}</div>
         </div>
       `).join('')}
     </div>
@@ -1067,14 +1084,14 @@ function renderCategory() {
   const breadcrumb = `
     <div class="breadcrumb">
       <span onclick="goHome()" style="cursor:pointer">홈</span> ›
-      <span onclick="goCategory('${cat}')" style="cursor:pointer">${catInfo.label}</span>
-      ${sub ? ` › <span>${subLabel}</span>` : ''}
+      <span onclick="goCategory('${escapeAttr(cat)}')" style="cursor:pointer">${escapeHtml(catInfo.label)}</span>
+      ${sub ? ` › <span>${escapeHtml(subLabel)}</span>` : ''}
     </div>
   `;
 
   m.innerHTML = `
     ${breadcrumb}
-    <h1 class="page-title">${catInfo.icon} ${subLabel || catInfo.label}</h1>
+    <h1 class="page-title">${escapeHtml(catInfo.icon)} ${escapeHtml(subLabel || catInfo.label)}</h1>
     <div class="page-sub">${filtered.length}건</div>
     <div class="grid">
       ${filtered.map(item => renderCard(item)).join('')}
@@ -1083,17 +1100,20 @@ function renderCategory() {
 }
 
 function renderCard(item) {
+  const eId = escapeAttr(item.id);
+  const eTitle = escapeHtml(item.title);
+  const eSub = escapeHtml(item.subcategory);
   if (item.category === 'contacts') {
     const c = item.content;
     return `
-      <div class="card" onclick="goDetail('${item.id}')">
-        <div class="card-tag">${item.campus} · ${item.subcategory}</div>
-        <div class="card-title">${item.title}</div>
+      <div class="card" onclick="goDetail('${eId}')">
+        <div class="card-tag">${escapeHtml(item.campus)} · ${eSub}</div>
+        <div class="card-title">${eTitle}</div>
         <div class="card-body">
-          ${c.직통번호 ? `<dt>직통</dt><dd>${c.직통번호}</dd>` : ''}
-          ${c.담당자 ? `<dt>담당자</dt><dd style="font-size:12px;">${c.담당자}</dd>` : ''}
-          ${c.위치 ? `<dt>위치</dt><dd>${c.위치}</dd>` : ''}
-          ${c.학원등록번호 ? `<dt>학원등록</dt><dd style="font-size:11px;">${c.학원등록번호}</dd>` : ''}
+          ${c.직통번호 ? `<dt>직통</dt><dd>${escapeHtml(c.직통번호)}</dd>` : ''}
+          ${c.담당자 ? `<dt>담당자</dt><dd style="font-size:12px;">${escapeHtml(c.담당자)}</dd>` : ''}
+          ${c.위치 ? `<dt>위치</dt><dd>${escapeHtml(c.위치)}</dd>` : ''}
+          ${c.학원등록번호 ? `<dt>학원등록</dt><dd style="font-size:11px;">${escapeHtml(c.학원등록번호)}</dd>` : ''}
         </div>
       </div>
     `;
@@ -1104,13 +1124,13 @@ function renderCard(item) {
              : c.인상액 < 0 ? `<span style="color:#059669;font-size:12px;font-weight:700;">↓ ${Math.abs(c.인상액).toLocaleString()}</span>`
              : '';
     return `
-      <div class="card" onclick="goDetail('${item.id}')">
-        <div class="card-tag">${item.subcategory}</div>
-        <div class="card-title">${item.title}</div>
+      <div class="card" onclick="goDetail('${eId}')">
+        <div class="card-tag">${eSub}</div>
+        <div class="card-title">${eTitle}</div>
         <div class="card-body">
           <div class="price">${(c['26년_수강료']||0).toLocaleString()}원 ${up}</div>
           ${c['25년_수강료'] && c.인상액 ? `<div class="price-old">25년 ${c['25년_수강료'].toLocaleString()}원</div>` : ''}
-          ${c.비고 ? `<dt>비고</dt><dd style="font-size:12px;">${c.비고}</dd>` : ''}
+          ${c.비고 ? `<dt>비고</dt><dd style="font-size:12px;">${escapeHtml(c.비고)}</dd>` : ''}
         </div>
       </div>
     `;
@@ -1128,17 +1148,16 @@ function renderCard(item) {
       preview = Object.values(c).filter(v => v).join(' · ').substring(0, 100);
     }
     return `
-      <div class="card" onclick="goDetail('${item.id}')">
-        <div class="card-tag">${item.subcategory}</div>
-        <div class="card-title">${item.title}</div>
-        <div class="card-body" style="font-size:12px;color:var(--muted);">${preview}</div>
+      <div class="card" onclick="goDetail('${eId}')">
+        <div class="card-tag">${eSub}</div>
+        <div class="card-title">${eTitle}</div>
+        <div class="card-body" style="font-size:12px;color:var(--muted);">${escapeHtml(preview)}</div>
       </div>
     `;
   }
   if (item.category === 'parent-response' || item.category === 'parent_response' ||
       item.category === 'cs-appreciation' || item.category === 'cs_appreciation' ||
       item.category === 'campus-guide' || item.category === 'campus_guide') {
-    // 두 종류: markdown(원문) 또는 recommended/avoid(권장/금지)
     const c = item.content;
     let preview = '';
     if (c.markdown) {
@@ -1147,10 +1166,10 @@ function renderCard(item) {
       preview = '✅ ' + c.recommended.substring(0, 90).replace(/\n/g, ' ') + '...';
     }
     return `
-      <div class="card" onclick="goDetail('${item.id}')">
-        <div class="card-tag">${item.subcategory}</div>
-        <div class="card-title">${item.title}</div>
-        <div class="card-body" style="font-size:12px;color:var(--muted);">${preview}</div>
+      <div class="card" onclick="goDetail('${eId}')">
+        <div class="card-tag">${eSub}</div>
+        <div class="card-title">${eTitle}</div>
+        <div class="card-body" style="font-size:12px;color:var(--muted);">${escapeHtml(preview)}</div>
       </div>
     `;
   }
@@ -1235,8 +1254,8 @@ function renderDetail() {
   } else {
     // 기존 contacts / tuition
     const rows = Object.entries(item.content).filter(([k,v]) => v).map(([k,v]) => `
-      <dt>${k}</dt>
-      <dd>${typeof v === 'number' ? v.toLocaleString() + (k.includes('수강료') || k.includes('인상액') ? '원' : '') : v}</dd>
+      <dt>${escapeHtml(k)}</dt>
+      <dd>${typeof v === 'number' ? v.toLocaleString() + (k.includes('수강료') || k.includes('인상액') ? '원' : '') : escapeHtml(v)}</dd>
     `).join('');
     body = `<dl>${rows}</dl>`;
   }
@@ -1247,21 +1266,25 @@ function renderDetail() {
   m.innerHTML = `
     <div class="breadcrumb">
       <span onclick="goHome()" style="cursor:pointer">홈</span> ›
-      <span onclick="goCategory('${catKey}')" style="cursor:pointer">${catLabel}</span> ›
-      <span>${item.title}</span>
+      <span onclick="goCategory('${escapeAttr(catKey)}')" style="cursor:pointer">${escapeHtml(catLabel)}</span> ›
+      <span>${escapeHtml(item.title)}</span>
     </div>
     <div class="detail">
-      <h2>${item.title}</h2>
+      <h2>${escapeHtml(item.title)}</h2>
       ${body}
       <div class="actions">
-        <button class="btn" onclick="copyItem('${item.id}')">📋 복사</button>
+        <button class="btn" onclick="copyItem('${escapeAttr(item.id)}')">📋 복사</button>
       </div>
     </div>
   `;
 }
 
 function escapeHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// onclick 등 HTML attribute 안에 안전하게 넣기 위한 escape (JS 문자열 escape 포함)
+function escapeAttr(s) {
+  return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,'\\\'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'\\n');
 }
 
 function copyItem(id) {
@@ -1282,11 +1305,13 @@ function copyItem(id) {
 // ==================== 검색 (Fuse.js + 초성 지원) ====================
 function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function highlightText(text, query) {
-  if (!text || !query) return text || '';
+  if (!text) return '';
+  const safe = escapeHtml(text);
+  if (!query) return safe;
   try {
-    const re = new RegExp(escapeRegex(query), 'gi');
-    return text.replace(re, m => `<mark>${m}</mark>`);
-  } catch { return text; }
+    const re = new RegExp(escapeRegex(escapeHtml(query)), 'gi');
+    return safe.replace(re, m => `<mark>${m}</mark>`);
+  } catch { return safe; }
 }
 
 function onSearch(e) {
@@ -1324,11 +1349,11 @@ function onSearch(e) {
   box.innerHTML = Object.entries(grouped).filter(([k,v]) => v.length).map(([k,v]) => `
     <div class="search-group-title">${catLabel[k]} (${v.length}건)</div>
     ${v.slice(0, 8).map(item => {
-      const title = chosungMode ? item.title : highlightText(item.title, raw);
-      return `<div class="search-item" onclick="goDetail('${item.id}'); hideSearchResults();">
+      const title = chosungMode ? escapeHtml(item.title) : highlightText(item.title, raw);
+      return `<div class="search-item" onclick="goDetail('${escapeAttr(item.id)}'); hideSearchResults();">
         ${title}
         <span style="color:var(--muted); font-size:11px; margin-left:6px;">
-          ${item.campus || item.subcategory || ''}
+          ${escapeHtml(item.campus || item.subcategory || '')}
         </span>
       </div>`;
     }).join('')}
@@ -1407,7 +1432,7 @@ const FlowBot = (function() {
       const srcEl = document.createElement('div');
       srcEl.className = 'flow-bot-sources';
       srcEl.innerHTML = `<div class="flow-bot-sources-title">📚 참고 데이터</div>` +
-        sources.map(s => `• ${s}`).join('<br>');
+        sources.map(s => '• ' + escapeHtml(s)).join('<br>');
       div.appendChild(srcEl);
     }
     // 상세 페이지 열기 버튼 (주 매칭 결과용)
@@ -1469,9 +1494,21 @@ const FlowBot = (function() {
     document.getElementById('flowBotSend').disabled = true;
 
     try {
+      // 🪝 특수 핸들러 선처리 (인삿말·도움말·무의미 질의·감정 질의)
+      const special = handleSpecialQuery(text);
+      if (special) { return; }
+
       // 로컬 검색 + 템플릿 포맷 (LLM 없음, 즉시 응답)
       const hits = searchLocal(text);
       const quality = evaluateAnswerQuality(text, hits);
+
+      // 캠퍼스 미매칭 폴백 안내 (searchLocal이 _NO_CAMPUS_DATA를 심어둠)
+      if (hits.length === 0 && window._NO_CAMPUS_DATA) {
+        const info = window._NO_CAMPUS_DATA;
+        const catKo = { contacts:'연락처', tuition:'수강료', admin:'행정 매뉴얼', files:'행정자료', parent_response:'학부모 응대', cs_appreciation:'CS 감탄', campus_guide:'캠퍼스 상담자료' }[info.category] || info.category;
+        addMsg('bot', `ℹ️ 「${info.campus}」의 ${catKo} 데이터는 등록되어 있지 않습니다.\n\n필요하시면 「자료 업데이트 요청」으로 등록을 부탁드리세요.`, null, 'no-campus');
+        return;
+      }
 
       if (hits.length === 0 || quality === 'none') {
         showNotFoundMessage(text);
@@ -1623,6 +1660,7 @@ const FlowBot = (function() {
     };
 
     // 1순위: intent.category 감지된 경우 그 카테고리 내 간단 매칭
+    window._NO_CAMPUS_DATA = null; // 리셋
     if (intent.category && DATA[intent.category]) {
       // adminSub 지정된 경우 (수익코드·반형태) 해당 서브카테고리만 필터
       let pool = DATA[intent.category];
@@ -1634,6 +1672,19 @@ const FlowBot = (function() {
         pool = pool.filter(item => (item.subcategory || '').startsWith(intent.adminSub + '.'));
       }
 
+      // 🔒 캠퍼스 미매칭 폴백: 캠퍼스 지정됐으면 pool을 선필터, 비면 "해당 캠퍼스 데이터 없음" 신호
+      if (intent.campus) {
+        const campusPool = pool.filter(item =>
+          item.campus === intent.campus ||
+          (item.content && item.content.캠퍼스 && String(item.content.캠퍼스).includes(intent.campus))
+        );
+        if (campusPool.length === 0) {
+          window._NO_CAMPUS_DATA = { campus: intent.campus, category: intent.category };
+          return []; // Fuse 폴백도 돌지 않음 — 치명 오답(정자 수강료→수내) 차단
+        }
+        pool = campusPool;
+      }
+
       // 키워드에서 "수익코드"·"반형태" 등 메타 단어 제거 (고유번호·캠퍼스·브랜드 등 핵심만)
       const metaWords = /수익코드|반형태|코드|고유번호|구분|담당자|내선|전화|직통|연락처|주소|위치|어디|알려줘|주세요|뭐야|무엇|어떻게/g;
       const q2 = q.replace(metaWords, ' ').trim();
@@ -1643,9 +1694,8 @@ const FlowBot = (function() {
         const text = (item.title + ' ' + (item.search_text || '') + ' ' + JSON.stringify(item.content || {})).toLowerCase();
         let score = 0;
         keywords.forEach(kw => { if (text.includes(kw.toLowerCase())) score += 1; });
-        // 캠퍼스 매칭 가중치
+        // 캠퍼스 매칭 가중치 (pool이 이미 선필터됐어도 2순위 Fuse 결과와 합쳐질 때 유효)
         if (intent.campus && item.campus === intent.campus) score += 3;
-        // 캠퍼스가 content.캠퍼스 필드에 있는 경우도 보너스 (수익코드 데이터용)
         if (intent.campus && item.content && item.content.캠퍼스 && String(item.content.캠퍼스).includes(intent.campus)) score += 3;
         return { item, score };
       }).filter(x => x.score > 0).sort((a,b) => b.score - a.score);
@@ -1702,11 +1752,68 @@ const FlowBot = (function() {
   }
 
   // 질문 의도 감지 (키워드 기반)
+  // 🪝 특수 질의 핸들러 (인삿말·도움말·감정·무의미 질의)
+  // 반환 true: send()가 즉시 종료 (addMsg 이미 호출됨)
+  function handleSpecialQuery(q) {
+    const t = (q || '').trim();
+    // 1) 무의미 질의: 2글자 미만 or 한글 음절/영숫자 섞인 쓰레기 패턴
+    //    (예: "ㄱㄱ", "ㅋㅋㅋ", "aaa", "123", "...")
+    if (t.length < 2) {
+      addMsg('bot', '질문을 조금 더 자세히 입력해 주세요. 예: "광교 중등관 담당자", "수내 초등 수강료", "사업자등록증"', null, 'tip');
+      return true;
+    }
+    if (/^[ㄱ-ㅎㅏ-ㅣ\s]+$/.test(t) || /^[a-zA-Z]{1,4}$/.test(t) || /^\d+$/.test(t)) {
+      addMsg('bot', '질문을 완성된 단어로 입력해 주세요. 예: "환불 응대", "본사 인사기획팀", "플로우교육 사업자등록증"', null, 'tip');
+      return true;
+    }
+    // 2) 인삿말·도움말
+    if (/^(안녕|hi|hello|헬로|도움말|help|사용법|뭐야|뭐할수있어|사용방법|가이드)/.test(t)) {
+      const msg = `안녕하세요! Flow CS Hub 챗봇입니다 🤝
+
+이렇게 질문해 주세요:
+• 캠퍼스/담당자 — "광교 중등관 담당자", "수내 초등 직통번호"
+• 수강료 — "수내 중등 사아 수강료", "26년 수강료"
+• 매뉴얼 — "환불 응대", "비즈메카", "교육청 강사 등록"
+• 수익코드 — "수익코드 광교 초등"
+• 행정자료 — "플로우교육 사업자등록증", "학원운영등록증"
+
+데이터에 없으면 "자료 업데이트 요청"으로 안내드립니다.`;
+      addMsg('bot', msg, null, 'help');
+      return true;
+    }
+    // 3) 감정/학부모 역할 시뮬레이션
+    if (/비싸|비쌉|비쌈|불만|화나|짜증|환불\s*해\s*줘|돈|너무/.test(t)) {
+      addMsg('bot', '학부모 응대 상황이신가요? 아래 매뉴얼을 참고해주세요.', null, 'guide');
+      // 그대로 흘려서 parent_response/환불 매뉴얼 검색 결과 보이도록 return false
+      return false;
+    }
+    return false;
+  }
+
+  // 담당자명 자동 사전 (최초 1회 캐싱) — contacts.content.담당자에서 추출
+  let CONTACT_NAMES_CACHE = null;
+  function getContactNames() {
+    if (CONTACT_NAMES_CACHE) return CONTACT_NAMES_CACHE;
+    const names = new Set();
+    (DATA.contacts || []).forEach(c => {
+      const raw = c.content && c.content.담당자 ? c.content.담당자 : '';
+      if (!raw) return;
+      // "홍길동 팀장 (내선 1234) · 김영희 과장" 같은 포맷에서 이름만 추출
+      raw.split(/[·,、]/).forEach(part => {
+        const m = part.trim().match(/^([가-힣]{2,4})/);
+        if (m && m[1].length >= 2) names.add(m[1]);
+      });
+    });
+    CONTACT_NAMES_CACHE = Array.from(names);
+    return CONTACT_NAMES_CACHE;
+  }
+
   function detectIntent(q) {
     const intent = { category: null, campus: null, adminSub: null };
 
     // ⭐ 파일/행정자료 다운로드 요청 (최우선)
-    if (/파일|자료\s*(다운|주세요|찾)|다운\s*(로드|받)|사업자등록|사업자\s*등록|증빙|양식|템플릿|로고|CI|BI|심볼|서식|업로드|문서\s*파일|PDF|엑셀\s*파일|한글\s*파일|다운받/.test(q)) {
+    // 공식 파일명 패턴도 포함: 제N학원, N타워, N빌딩, 학원운영등록증, 등록증, pdf, 메이플라워 등
+    if (/파일|자료\s*(다운|주세요|찾)|다운\s*(로드|받)|사업자등록|사업자\s*등록|증빙|양식|템플릿|로고|CI|BI|심볼|서식|업로드|문서\s*파일|PDF|엑셀\s*파일|한글\s*파일|다운받|제\s*\d+\s*학원|\d+\s*타워|\d+\s*빌딩|엔타워|N타워|학원운영등록증|학원\s*등록증|등록증\s*파일|메이플라워|플로우교육|풍해빌딩|다운타운|엔타워|한화빌딩|금강프라자|정민빌딩/i.test(q)) {
       intent.category = 'files';
     }
     // ⭐ admin 하위 특수 서브카테고리 우선 체크 (수익코드·반형태)
@@ -1718,8 +1825,11 @@ const FlowBot = (function() {
       intent.adminSub = 'Ⅲ';  // Ⅲ. 반형태 · 수익구분
     }
     // 그 외 카테고리 힌트
-    else if (/수강료|비용|가격|얼마|원/.test(q)) intent.category = 'tuition';
-    else if (/담당자|내선|전화|직통|연락처|주소|위치|어디/.test(q)) intent.category = 'contacts';
+    // 'tuition': "원" 1글자 매칭 금지 → 숫자+원 또는 "수강료"·"비용"·"가격"·"얼마" 명시어 필요
+    else if (/수강료|학원비|강습비|가격|얼마|비용(?!의)|\d\s*만?\s*원|원\s*인상/.test(q)) intent.category = 'tuition';
+    else if (/담당자|내선|전화|직통|연락처|주소|위치|어디|부원장|팀장|과장|대리|주임|사원|선생님/.test(q)) intent.category = 'contacts';
+    // 담당자명 사전 매칭 (고수정·조병룡 등 이름만 입력해도 contacts로 유도)
+    else if (getContactNames().some(name => q.includes(name))) intent.category = 'contacts';
     else if (/응대|스크립트|환불|클레임|문의|대응/.test(q)) intent.category = 'parent_response';
     else if (/감탄|친절|응대 매뉴얼/.test(q)) intent.category = 'cs_appreciation';
     else if (/매뉴얼|절차|방법|어떻게|등록|아카|비즈메카|교육청/.test(q)) intent.category = 'admin';
