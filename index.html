@@ -536,13 +536,14 @@ body {
   /* 챗봇 창 */
   #flow-bot-window {
     position: fixed; right: 24px; bottom: 96px; z-index: 998;
-    width: 420px; height: 620px; max-height: calc(100vh - 120px);
+    width: 540px; height: 760px;
+    max-width: calc(100vw - 48px); max-height: calc(100vh - 120px);
     background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
     display: none; flex-direction: column; overflow: hidden;
     border: 1px solid var(--line);
   }
   #flow-bot-window.open { display: flex; }
-  @media (max-width: 480px) {
+  @media (max-width: 600px) {
     #flow-bot-window {
       right: 8px; left: 8px; bottom: 88px;
       width: auto; height: calc(100vh - 110px);
