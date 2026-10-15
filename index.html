@@ -1691,11 +1691,24 @@ const FlowBot = (function() {
       const q2 = q.replace(metaWords, ' ').trim();
       const keywords = q2.split(/\s+/).filter(w => w.length >= 1);
 
+      // 🔎 pool 내 Fuse 재검색 (부분 매칭 — "재무팀" → "재무기획팀" 자동 매칭)
+      const poolFuse = new Fuse(pool, {
+        keys: [{name:'title', weight:3}, {name:'search_text', weight:2}, {name:'tags', weight:1}],
+        threshold: 0.4, ignoreLocation: true, minMatchCharLength: 2, includeScore: true,
+      });
+      const poolHits = poolFuse.search(q2 || q, { limit: 10 });
+
+      // keyword scoring + Fuse 결합
+      const fuseScoreMap = new Map();
+      poolHits.forEach(h => fuseScoreMap.set(h.item.id, 1 - (h.score || 0)));
+
       const scored = pool.map(item => {
         const text = (item.title + ' ' + (item.search_text || '') + ' ' + JSON.stringify(item.content || {})).toLowerCase();
         let score = 0;
         keywords.forEach(kw => { if (text.includes(kw.toLowerCase())) score += 1; });
-        // 캠퍼스 매칭 가중치 (pool이 이미 선필터됐어도 2순위 Fuse 결과와 합쳐질 때 유효)
+        // Fuse 매칭도 반영 (fuzzy / 부분 매칭)
+        score += (fuseScoreMap.get(item.id) || 0) * 2;
+        // 캠퍼스 매칭 가중치
         if (intent.campus && item.campus === intent.campus) score += 3;
         if (intent.campus && item.content && item.content.캠퍼스 && String(item.content.캠퍼스).includes(intent.campus)) score += 3;
         return { item, score };
@@ -1832,7 +1845,7 @@ const FlowBot = (function() {
     // 그 외 카테고리 힌트
     // 'tuition': "원" 1글자 매칭 금지 → 숫자+원 또는 "수강료"·"비용"·"가격"·"얼마" 명시어 필요
     else if (/수강료|학원비|강습비|가격|얼마|비용(?!의)|\d\s*만?\s*원|원\s*인상/.test(q)) intent.category = 'tuition';
-    else if (/담당자|내선|전화|직통|연락처|주소|위치|어디|부원장|팀장|과장|대리|주임|사원|선생님/.test(q)) intent.category = 'contacts';
+    else if (/담당자|내선|전화|직통|연락처|주소|위치|어디|부원장|팀장|과장|대리|주임|사원|선생님|기획팀|인사팀|재무팀|총무팀|법무팀|관리팀|경영관리|경영본부|사업부|본부|부서|팀$|팀\s|팀[\?!\.]|팀의/.test(q)) intent.category = 'contacts';
     // 담당자명 사전 매칭 (고수정·조병룡 등 이름만 입력해도 contacts로 유도)
     else if (getContactNames().some(name => q.includes(name))) intent.category = 'contacts';
     else if (/응대|스크립트|환불|클레임|문의|대응/.test(q)) intent.category = 'parent_response';
