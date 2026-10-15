@@ -1545,10 +1545,16 @@ const FlowBot = (function() {
     const top = hits[0];
     const topText = (top.title + ' ' + (top.search_text || '') + ' ' + JSON.stringify(top.content || {})).toLowerCase();
 
-    // 질문 키워드 중 몇 개가 결과에 포함되나?
+    // 질문 키워드 중 몇 개가 결과에 포함되나? (부분 매칭 포함)
+    const titleLower = (top.title || '').toLowerCase();
     let matched = 0;
     keywords.forEach(kw => {
-      if (topText.includes(kw.toLowerCase())) matched += 1;
+      const k = kw.toLowerCase();
+      if (topText.includes(k)) { matched += 1; return; }
+      // 부분 매칭 — 접두사 2글자 ("재무팀" → "재무기획팀" title에 "재무" 포함) 0.7점
+      if (k.length >= 3 && titleLower.includes(k.substring(0, 2))) { matched += 0.7; return; }
+      // 더 완화된 부분 — 2글자라도 title에 있으면 0.5점
+      if (k.length >= 2 && titleLower.includes(k.substring(0, 2))) matched += 0.5;
     });
 
     const matchRatio = matched / keywords.length;
