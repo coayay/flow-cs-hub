@@ -1795,13 +1795,17 @@ const FlowBot = (function() {
   function getContactNames() {
     if (CONTACT_NAMES_CACHE) return CONTACT_NAMES_CACHE;
     const names = new Set();
+    const TITLE = /(부원장|팀장|과장|대리|주임|사원|선생님|선생|부장|차장|이사|대표|실장|관장|원장|소장|상담사|코디|팀|과)/;
     (DATA.contacts || []).forEach(c => {
       const raw = c.content && c.content.담당자 ? c.content.담당자 : '';
       if (!raw) return;
-      // "홍길동 팀장 (내선 1234) · 김영희 과장" 같은 포맷에서 이름만 추출
-      raw.split(/[·,、]/).forEach(part => {
-        const m = part.trim().match(/^([가-힣]{2,4})/);
-        if (m && m[1].length >= 2) names.add(m[1]);
+      // "조연희팀장(대리) · 박병우대리 (내선 9702)" → 각 조각에서 직급어 앞 이름 추출
+      raw.replace(/\([^)]*\)/g, '').split(/[·,、/]/).forEach(part => {
+        const t = part.trim();
+        if (!t) return;
+        const splitIdx = t.search(TITLE);
+        const nameCand = splitIdx > 0 ? t.slice(0, splitIdx).trim() : t;
+        if (/^[가-힣]{2,4}$/.test(nameCand)) names.add(nameCand);
       });
     });
     CONTACT_NAMES_CACHE = Array.from(names);
