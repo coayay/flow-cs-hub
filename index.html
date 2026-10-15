@@ -464,18 +464,74 @@ body {
 
 <!-- Flow 내장 챗봇 (Dify 대체 · Claude API 직접 연동) -->
 <style>
-  /* 플로팅 버튼 */
+  /* 플로팅 버튼 · 매력적 디자인 */
+  @keyframes flow-bot-pulse {
+    0%   { box-shadow: 0 6px 20px rgba(15, 118, 110, 0.4), 0 0 0 0 rgba(217, 182, 111, 0.5); }
+    70%  { box-shadow: 0 6px 20px rgba(15, 118, 110, 0.4), 0 0 0 14px rgba(217, 182, 111, 0); }
+    100% { box-shadow: 0 6px 20px rgba(15, 118, 110, 0.4), 0 0 0 0 rgba(217, 182, 111, 0); }
+  }
+  @keyframes flow-bot-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-4px); }
+  }
   #flow-bot-fab {
     position: fixed; right: 24px; bottom: 24px; z-index: 999;
-    width: 60px; height: 60px; border-radius: 50%;
-    background: #0f766e; color: white; border: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    cursor: pointer; font-size: 24px;
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, #14b8a6 0%, #0f766e 50%, #1e3a5f 100%);
+    color: white; border: none; cursor: pointer;
+    font-size: 26px;
     display: flex; align-items: center; justify-content: center;
-    transition: transform 0.2s;
+    animation: flow-bot-pulse 2.5s ease-out infinite, flow-bot-float 3.5s ease-in-out infinite;
+    transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), width 0.3s;
+    overflow: hidden; white-space: nowrap;
+    font-weight: 700; font-family: inherit;
   }
-  #flow-bot-fab:hover { transform: scale(1.08); }
-  #flow-bot-fab.active { background: #991b1b; }
+  #flow-bot-fab::before {
+    content: ""; position: absolute; inset: 2px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent 50%);
+    pointer-events: none;
+  }
+  #flow-bot-fab .flow-bot-fab-icon {
+    position: relative; z-index: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: transform 0.3s;
+  }
+  #flow-bot-fab .flow-bot-fab-label {
+    position: relative; z-index: 1;
+    font-size: 14px; margin-left: 8px; opacity: 0; width: 0;
+    transition: opacity 0.25s, width 0.3s, margin-left 0.3s;
+    overflow: hidden;
+  }
+  #flow-bot-fab:hover {
+    width: 180px; border-radius: 32px;
+    transform: scale(1.03);
+    animation: none;
+    box-shadow: 0 10px 30px rgba(15, 118, 110, 0.5);
+  }
+  #flow-bot-fab:hover .flow-bot-fab-label {
+    opacity: 1; width: auto;
+  }
+  #flow-bot-fab:hover .flow-bot-fab-icon {
+    transform: rotate(-10deg) scale(1.1);
+  }
+  #flow-bot-fab.active {
+    background: linear-gradient(135deg, #ef4444, #991b1b);
+    animation: none;
+    width: 56px; height: 56px;
+  }
+  /* AI 뱃지 */
+  #flow-bot-fab-badge {
+    position: absolute; top: -4px; right: -4px; z-index: 1000;
+    background: linear-gradient(135deg, #d9b66f, #b8860b);
+    color: #1f2937; font-size: 9px; font-weight: 800;
+    padding: 3px 7px; border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    border: 2px solid white;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+  }
+  #flow-bot-fab.active ~ #flow-bot-fab-badge { display: none; }
 
   /* 챗봇 창 */
   #flow-bot-window {
@@ -541,7 +597,11 @@ body {
 </style>
 
 <!-- 챗봇 UI (플로팅) -->
-<button id="flow-bot-fab" onclick="FlowBot.toggle()" title="Flow 챗봇">💬</button>
+<button id="flow-bot-fab" onclick="FlowBot.toggle()" title="Flow 챗봇 · 자료 즉시 검색">
+  <span class="flow-bot-fab-icon">💬</span>
+  <span class="flow-bot-fab-label">무엇이든 물어보세요</span>
+</button>
+<div id="flow-bot-fab-badge">AI</div>
 <div id="flow-bot-window">
   <div class="flow-bot-header">
     <div class="flow-bot-header-title">🤖 Flow 챗봇</div>
@@ -1240,19 +1300,26 @@ const FlowBot = (function() {
     isOpen = !isOpen;
     const win = document.getElementById('flow-bot-window');
     const fab = document.getElementById('flow-bot-fab');
+    const badge = document.getElementById('flow-bot-fab-badge');
+    const iconEl = fab.querySelector('.flow-bot-fab-icon');
+    const labelEl = fab.querySelector('.flow-bot-fab-label');
     if (isOpen) {
       win.classList.add('open');
       fab.classList.add('active');
-      fab.textContent = '✕';
+      if (iconEl) iconEl.textContent = '✕';
+      if (labelEl) labelEl.textContent = '';
+      if (badge) badge.style.display = 'none';
       // 환영 메시지
       if (messages.length === 0) {
-        addMsg('bot', `안녕하세요! Flow CS Hub 챗봇입니다.\n\n자연어로 질문하시면 데이터베이스에서 즉시 찾아 답변드립니다.\n\n💡 자주 묻는 질문:\n• "수내 초등관 연락처"\n• "본사 인사팀 내선"\n• "광교 중등관 주소"\n• "수지 고등사스 수강료"\n• "환불 매뉴얼"\n\n하단 추천 버튼으로도 바로 테스트 가능합니다.`);
+        addMsg('bot', `안녕하세요! Flow CS Hub 챗봇입니다.\n\n자연어로 질문하시면 데이터베이스에서 즉시 찾아 답변드립니다.\n\n💡 자주 묻는 질문:\n• "수내 초등관 연락처"\n• "본사 인사팀 내선"\n• "광교 중등관 주소"\n• "수지 고등사스 수강료"\n• "환불 매뉴얼"\n• "이매 중등관 수익코드"\n\n데이터에 없는 자료는 "자료 업데이트 요청"으로 안내드립니다.`);
       }
       setTimeout(() => document.getElementById('flowBotInput').focus(), 100);
     } else {
       win.classList.remove('open');
       fab.classList.remove('active');
-      fab.textContent = '💬';
+      if (iconEl) iconEl.textContent = '💬';
+      if (labelEl) labelEl.textContent = '무엇이든 물어보세요';
+      if (badge) badge.style.display = '';
     }
   }
 
