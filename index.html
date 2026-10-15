@@ -924,6 +924,9 @@ function renderSidebar() {
     <button class="sidebar-close" onclick="closeSidebar()" aria-label="메뉴 닫기">✕</button>
     <div class="sidebar-section">
       <div class="sidebar-item ${isHomeActive}" onclick="goHome()">📍 홈</div>
+      <div class="sidebar-item" onclick="window.open('https://drive.google.com/drive/u/0/folders/0AIeIq_IZfPiqUk9PVA','_blank','noopener')">
+        📁 CS 행정자료 <span class="sidebar-count">${(DATA.files||[]).length}</span>
+      </div>
     </div>
 
     <div class="${secClass('contacts')}">
