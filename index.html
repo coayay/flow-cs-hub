@@ -891,12 +891,16 @@ function renderHome() {
       <p>수학의아침 CS 직원 통합 상담 지원 플랫폼 · 매뉴얼과 챗봇을 한 곳에서 · 5개 캠퍼스 · 총 ${DATA.meta.counts.total}건</p>
     </div>
 
-    <div style="display:flex; gap:12px; margin:16px 0 20px; flex-wrap:wrap;">
+    <div style="display:flex; gap:10px; margin:16px 0 20px; flex-wrap:wrap; align-items:center;">
       <a href="https://docs.google.com/spreadsheets/d/1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU/edit" target="_blank" rel="noopener"
          style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; background:#0f766e; color:#fff; border-radius:8px; text-decoration:none; font-weight:600; font-size:14px; box-shadow:0 2px 4px rgba(0,0,0,0.08);">
         📝 연락처·수강료 데이터 편집 (구글 시트)
       </a>
-      <span style="align-self:center; font-size:12px; color:var(--muted);">편집 후 5~15분 내 자동 반영</span>
+      <a href="https://docs.google.com/spreadsheets/d/1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU/edit?gid=1234312928#gid=1234312928" target="_blank" rel="noopener"
+         style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; background:#d9b66f; color:#1f2937; border-radius:8px; text-decoration:none; font-weight:600; font-size:14px; box-shadow:0 2px 4px rgba(0,0,0,0.08);">
+        🔔 자료 업데이트 요청
+      </a>
+      <span style="font-size:12px; color:var(--muted);">편집 후 5~15분 내 자동 반영</span>
     </div>
 
     <div class="dash-cards">
@@ -1296,18 +1300,19 @@ const FlowBot = (function() {
     try {
       // 로컬 검색 + 템플릿 포맷 (LLM 없음, 즉시 응답)
       const hits = searchLocal(text);
+      const quality = evaluateAnswerQuality(text, hits);
 
-      if (hits.length === 0) {
-        addMsg('bot', `"${text}"에 대한 검색 결과가 없습니다.\n\n💡 팁:\n- 캠퍼스명(수내·광교·수지·영통·이매·정자·본사) 포함해보세요\n- 관(초등·중등·고등) 또는 부서명 포함\n- 키워드 간단히 (예: "수지 중등 담당자")`, null, 'error');
-      } else {
-        // 최상위 결과를 메인 답변으로 포맷
+      if (hits.length === 0 || quality === 'none') {
+        showNotFoundMessage(text);
+      } else if (quality === 'weak') {
+        // 매칭 약함 — 결과는 보여주되 업데이트 요청 안내 함께
         const main = hits[0];
-        const mainMsg = formatAnswer(main);
-        const sources = hits.slice(0, 3).map(h => h.title);
-
-        addMsg('bot', mainMsg, sources);
-
-        // 2위 이하가 있으면 "다른 결과 N건" 안내
+        addMsg('bot', formatAnswer(main), hits.slice(0, 3).map(h => h.title));
+        showUpdateRequestPrompt(text, '검색 결과가 질문과 정확히 일치하지 않을 수 있습니다.');
+      } else {
+        // 품질 OK
+        const main = hits[0];
+        addMsg('bot', formatAnswer(main), hits.slice(0, 3).map(h => h.title));
         if (hits.length > 1) {
           const others = hits.slice(1, 4).map((h, i) =>
             `${i+2}. ${h.title}${h.campus ? ' ('+h.campus+')' : ''}`
@@ -1321,6 +1326,69 @@ const FlowBot = (function() {
       isSending = false;
       document.getElementById('flowBotSend').disabled = false;
     }
+  }
+
+  // 답변 품질 판정: good / weak / none
+  function evaluateAnswerQuality(query, hits) {
+    if (!hits || hits.length === 0) return 'none';
+
+    // 질문에서 2글자 이상의 의미 단어 추출 (불용어 제외)
+    const stopwords = new Set(['알려줘','알려주세요','뭐야','무엇','어떻게','방법','주세요','입니다','주소','번호','연락처']);
+    const keywords = query.split(/\s+/).filter(w => w.length >= 2 && !stopwords.has(w));
+    if (keywords.length === 0) return 'good'; // 키워드 추출 불가 시 결과 신뢰
+
+    const top = hits[0];
+    const topText = (top.title + ' ' + (top.search_text || '') + ' ' + JSON.stringify(top.content || {})).toLowerCase();
+
+    // 질문 키워드 중 몇 개가 결과에 포함되나?
+    let matched = 0;
+    keywords.forEach(kw => {
+      if (topText.includes(kw.toLowerCase())) matched += 1;
+    });
+
+    const matchRatio = matched / keywords.length;
+
+    if (matchRatio >= 0.6) return 'good';   // 60% 이상 매칭
+    if (matchRatio >= 0.3) return 'weak';   // 30~60%: 결과는 있지만 애매
+    return 'none';                           // 30% 미만: 매칭 거의 없음
+  }
+
+  // 자료 없음 메시지 (업데이트 요청 안내 포함)
+  function showNotFoundMessage(query) {
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU/edit?gid=1234312928#gid=1234312928';
+    const msg = `🔄 자료 업데이트 중입니다.
+
+"${query}"에 대한 자료가 아직 등록되지 않았거나 업데이트 중입니다.
+
+👉 필요한 자료가 있으시면 아래 링크에서 요청해 주세요:
+📝 자료 업데이트 요청하기
+
+(홈 화면 상단의 "연락처·수강료 데이터 편집" 버튼을 눌러 시트에 접속하신 뒤 「자료 업데이트 요청」 탭에 작성하시면 됩니다)`;
+    const el = addMsg('bot', msg, null, 'not-found');
+    // 링크 추가
+    const linkBtn = document.createElement('a');
+    linkBtn.href = sheetUrl;
+    linkBtn.target = '_blank';
+    linkBtn.rel = 'noopener';
+    linkBtn.textContent = '📝 자료 업데이트 요청 시트 열기';
+    linkBtn.style.cssText = 'display:inline-block; margin-top:10px; padding:8px 14px; background:#0f766e; color:white; border-radius:8px; text-decoration:none; font-weight:600; font-size:12px;';
+    el.appendChild(document.createElement('br'));
+    el.appendChild(linkBtn);
+  }
+
+  // 결과는 있지만 품질 약할 때 추가 안내
+  function showUpdateRequestPrompt(query, reason) {
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/1BVh2RxvQId82EeCQ7Yi8IIj8HOt4G1SpjbrtmzlEfpU/edit?gid=1234312928#gid=1234312928';
+    const msg = `💡 ${reason}\n\n원하시는 정확한 정보가 아니면 자료 업데이트를 요청해주세요.`;
+    const el = addMsg('bot', msg, null, 'weak-match');
+    const linkBtn = document.createElement('a');
+    linkBtn.href = sheetUrl;
+    linkBtn.target = '_blank';
+    linkBtn.rel = 'noopener';
+    linkBtn.textContent = '📝 자료 업데이트 요청';
+    linkBtn.style.cssText = 'display:inline-block; margin-top:8px; padding:6px 12px; background:#0f766e; color:white; border-radius:6px; text-decoration:none; font-weight:600; font-size:11px;';
+    el.appendChild(document.createElement('br'));
+    el.appendChild(linkBtn);
   }
 
   // 로컬 검색 (의도 감지 → 카테고리 전용 검색 우선 → Fuse 전체 검색 폴백)
