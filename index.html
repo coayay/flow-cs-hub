@@ -1704,8 +1704,24 @@ const FlowBot = (function() {
 
       const scored = pool.map(item => {
         const text = (item.title + ' ' + (item.search_text || '') + ' ' + JSON.stringify(item.content || {})).toLowerCase();
+        const titleLower = (item.title || '').toLowerCase();
         let score = 0;
-        keywords.forEach(kw => { if (text.includes(kw.toLowerCase())) score += 1; });
+        keywords.forEach(kw => {
+          const k = kw.toLowerCase();
+          if (text.includes(k)) {
+            score += 1;
+            // 제목 완전 포함이면 +1 추가
+            if (titleLower.includes(k)) score += 1;
+          } else if (k.length >= 3) {
+            // 부분 매칭 — 접두사 2글자가 제목에 있으면 큰 가중치 ("재무팀" → "재무기획팀")
+            const prefix = k.substring(0, 2);
+            if (titleLower.includes(prefix)) score += 1.5;
+            else if (text.includes(prefix)) score += 0.5;
+          } else if (k.length === 2 && titleLower.includes(k)) {
+            // 2글자 키워드도 title 포함이면 보너스
+            score += 0.5;
+          }
+        });
         // Fuse 매칭도 반영 (fuzzy / 부분 매칭)
         score += (fuseScoreMap.get(item.id) || 0) * 2;
         // 캠퍼스 매칭 가중치
