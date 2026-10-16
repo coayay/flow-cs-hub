@@ -1203,6 +1203,8 @@ function renderMarkdown(md) {
   out = out.replace(/^# (.+)$/gm, '<h2 class="md-h2">$1</h2>');
   // 볼드
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // URL 자동 링크화 (http/https) — 기존 <a> 안이 아닌 raw URL만
+  out = out.replace(/(https?:\/\/[^\s<)]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#1a73e8; text-decoration:underline; word-break:break-all;">$1</a>');
   // 리스트 (- 로 시작)
   out = out.replace(/(?:^- .+(?:\n|$))+/gm, block => {
     const items = block.trim().split('\n').map(l => l.replace(/^- /, '').trim());
