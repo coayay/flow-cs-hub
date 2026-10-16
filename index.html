@@ -1251,6 +1251,33 @@ function renderDetail() {
   } else if (item.category === 'admin' && item.content && item.content.markdown) {
     // 행정 매뉴얼: markdown 필드 있으면 원문 렌더링
     body = `<div class="md-body">${renderMarkdown(item.content.markdown)}</div>`;
+  } else if (item.category === 'files') {
+    // 행정자료 파일: 분류·설명·파일종류·수정일 + 「구글 드라이브 열기」 버튼
+    const raw = (DATA.files || []).find(f => f.id === item.id);
+    const desc = raw && raw.description ? raw.description : (typeof item.content === 'string' ? item.content : '');
+    const fileType = raw && raw.file_type ? raw.file_type : '';
+    const updated = raw && raw.updated ? raw.updated : '';
+    const driveUrl = raw && raw.drive_url ? raw.drive_url : (item.drive_url || '');
+    const rows = [];
+    if (item.subcategory) rows.push(`<dt>분류</dt><dd>${escapeHtml(item.subcategory)}</dd>`);
+    if (desc) rows.push(`<dt>설명</dt><dd>${escapeHtml(desc)}</dd>`);
+    if (fileType) rows.push(`<dt>파일 종류</dt><dd>${escapeHtml(fileType)}</dd>`);
+    if (updated) rows.push(`<dt>수정일</dt><dd>${escapeHtml(updated)}</dd>`);
+    body = `<dl>${rows.join('')}</dl>` + (driveUrl ? `
+      <div style="margin-top:20px; display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="${escapeAttr(driveUrl)}" target="_blank" rel="noopener"
+           style="padding:10px 20px; background:#1a73e8; color:white; border-radius:8px; text-decoration:none; font-weight:600; font-size:14px; display:inline-flex; align-items:center; gap:6px;">
+          🔗 구글 드라이브에서 파일 열기
+        </a>
+      </div>
+      <div style="margin-top:10px; font-size:12px; color:var(--muted);">
+        * 파일 미리보기·다운로드·공유는 구글 드라이브에서 진행됩니다.
+      </div>
+    ` : `
+      <div style="margin-top:16px; padding:10px 14px; background:#fef3c7; color:#b45309; border-radius:8px; font-size:13px;">
+        ⚠️ 드라이브 링크가 등록되지 않았습니다. 「행정자료」 시트에서 링크 입력이 필요합니다.
+      </div>
+    `);
   } else {
     // 기존 contacts / tuition
     const rows = Object.entries(item.content).filter(([k,v]) => v).map(([k,v]) => `
