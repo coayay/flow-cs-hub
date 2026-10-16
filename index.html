@@ -1796,10 +1796,13 @@ const FlowBot = (function() {
       }
     }
 
+    // source 우선순위 정렬 (intent-category가 Fuse 전체 폴백보다 상위)
+    const srcOrder = { 'intent-category': 0, 'fuse-original': 1, 'fuse-cleaned': 2, 'fuse-keywords': 3 };
+    allHits.sort((a, b) => (srcOrder[a.source] ?? 9) - (srcOrder[b.source] ?? 9));
     let hits = allHits.map(x => x.item);
 
-    // intent.campus 매칭 가중치
-    if (intent.campus) {
+    // intent.campus 매칭 가중치 — files 카테고리 질의는 제외 (파일에는 campus 필드 없음)
+    if (intent.campus && intent.category !== 'files') {
       hits.sort((a, b) => {
         const aC = (a.campus === intent.campus) ? -1 : 1;
         const bC = (b.campus === intent.campus) ? -1 : 1;
