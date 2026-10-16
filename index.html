@@ -793,7 +793,12 @@ async function loadData() {
   // 시트 데이터 있으면 우선 사용, 없으면 로컬
   const c = (c_sheet && c_sheet.length) ? csvToContacts(c_sheet) : c_local;
   const t = (t_sheet && t_sheet.length) ? csvToTuition(t_sheet) : t_local;
-  const files = (files_sheet && files_sheet.length) ? csvToFiles(files_sheet) : files_local;
+  // 🔗 files는 merge: 시트(공유 드라이브 자동) + 로컬 files.json(수동 외부 링크)
+  // 중복 id는 로컬이 우선 (수동 등록이 더 최신 정보로 간주)
+  const filesFromSheet = (files_sheet && files_sheet.length) ? csvToFiles(files_sheet) : [];
+  const filesFromLocal = Array.isArray(files_local) ? files_local : [];
+  const seenFileIds = new Set(filesFromLocal.map(f => f.id));
+  const files = [...filesFromLocal, ...filesFromSheet.filter(f => !seenFileIds.has(f.id))];
 
   DATA.contacts = c; DATA.tuition = t; DATA.admin = a;
   DATA.parent_response = pr; DATA.cs_appreciation = ca; DATA.campus_guide = cg;
@@ -1263,15 +1268,20 @@ function renderDetail() {
     if (desc) rows.push(`<dt>설명</dt><dd>${escapeHtml(desc)}</dd>`);
     if (fileType) rows.push(`<dt>파일 종류</dt><dd>${escapeHtml(fileType)}</dd>`);
     if (updated) rows.push(`<dt>수정일</dt><dd>${escapeHtml(updated)}</dd>`);
+    const isDrive = /drive\.google\.com/.test(driveUrl);
+    const btnLabel = isDrive ? '🔗 구글 드라이브에서 파일 열기' : '🔗 홈페이지에서 열기';
+    const footer = isDrive
+      ? '* 파일 미리보기·다운로드·공유는 구글 드라이브에서 진행됩니다.'
+      : '* 외부 홈페이지로 이동합니다. 내용은 홈페이지에서 실시간 반영됩니다.';
     body = `<dl>${rows.join('')}</dl>` + (driveUrl ? `
       <div style="margin-top:20px; display:flex; gap:8px; flex-wrap:wrap;">
         <a href="${escapeAttr(driveUrl)}" target="_blank" rel="noopener"
            style="padding:10px 20px; background:#1a73e8; color:white; border-radius:8px; text-decoration:none; font-weight:600; font-size:14px; display:inline-flex; align-items:center; gap:6px;">
-          🔗 구글 드라이브에서 파일 열기
+          ${btnLabel}
         </a>
       </div>
       <div style="margin-top:10px; font-size:12px; color:var(--muted);">
-        * 파일 미리보기·다운로드·공유는 구글 드라이브에서 진행됩니다.
+        ${footer}
       </div>
     ` : `
       <div style="margin-top:16px; padding:10px 14px; background:#fef3c7; color:#b45309; border-radius:8px; font-size:13px;">
@@ -1472,7 +1482,9 @@ const FlowBot = (function() {
         if (detailItem.drive_url) {
           const open = document.createElement('a');
           open.href = detailItem.drive_url; open.target = '_blank'; open.rel = 'noopener';
-          open.textContent = '🔗 구글 드라이브 열기';
+          // 구글 드라이브 vs 외부 링크 자동 분기
+          const isDrive = /drive\.google\.com/.test(detailItem.drive_url);
+          open.textContent = isDrive ? '🔗 구글 드라이브 열기' : '🔗 홈페이지에서 열기';
           open.style.cssText = 'padding:7px 14px; background:#1a73e8; color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit; text-decoration:none; display:inline-block;';
           linkEl.appendChild(open);
         }
@@ -1880,7 +1892,7 @@ const FlowBot = (function() {
 
     // ⭐ 파일/행정자료 다운로드 요청 (최우선)
     // 공식 파일명 패턴도 포함: 제N학원, N타워, N빌딩, 학원운영등록증, 등록증, pdf, 메이플라워 등
-    if (/파일|자료\s*(다운|주세요|찾)|다운\s*(로드|받)|사업자등록|사업자\s*등록|증빙|양식|템플릿|로고|CI|BI|심볼|서식|업로드|문서\s*파일|PDF|엑셀\s*파일|한글\s*파일|다운받|제\s*\d+\s*학원|\d+\s*타워|\d+\s*빌딩|엔타워|N타워|학원운영등록증|학원\s*등록증|등록증\s*파일|메이플라워|플로우교육|풍해빌딩|다운타운|엔타워|한화빌딩|금강프라자|정민빌딩/i.test(q)) {
+    if (/파일|자료\s*(다운|주세요|찾)|다운\s*(로드|받)|사업자등록|사업자\s*등록|증빙|양식|템플릿|로고|CI|BI|심볼|서식|업로드|문서\s*파일|PDF|엑셀\s*파일|한글\s*파일|다운받|제\s*\d+\s*학원|\d+\s*타워|\d+\s*빌딩|엔타워|N타워|학원운영등록증|학원\s*등록증|등록증\s*파일|메이플라워|플로우교육|풍해빌딩|다운타운|엔타워|한화빌딩|금강프라자|정민빌딩|셔틀|노선표|노선|시간표|운행|버스/i.test(q)) {
       intent.category = 'files';
     }
     // ⭐ admin 하위 특수 서브카테고리 우선 체크 (수익코드·반형태)

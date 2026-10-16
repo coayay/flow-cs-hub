@@ -1,32 +1,57 @@
 [
   {
-    "id": "file-biz-license",
-    "title": "플로우교육 사업자등록증",
-    "category": "법인/증빙",
-    "description": "플로우교육(주) 법인 사업자등록증 (최신본)",
-    "drive_url": "https://drive.google.com/drive/folders/REPLACE_ME",
+    "id": "shuttle-sunae",
+    "title": "수내 캠퍼스 셔틀 노선표",
+    "category": "셔틀 노선표",
+    "description": "학원 홈페이지의 수내 캠퍼스 셔틀 운행 노선·시간표 (실시간 반영)",
+    "drive_url": "https://buly.kr/BIVpihF",
     "download_url": "",
-    "updated": "2026-10-15",
-    "keywords": "사업자등록증·사업자등록·법인등록·세금계산서·증빙·등록증"
+    "updated": "2026-10-16",
+    "keywords": "셔틀·노선표·시간표·운행·버스·노선·수내 셔틀·수내 노선",
+    "file_type": "링크"
   },
   {
-    "id": "file-ci",
-    "title": "수학의아침 CI 로고",
-    "category": "브랜드",
-    "description": "수학의아침 공식 로고·심볼 (AI·PNG)",
-    "drive_url": "https://drive.google.com/drive/folders/REPLACE_ME",
+    "id": "shuttle-imae",
+    "title": "이매 캠퍼스 셔틀 노선표",
+    "category": "셔틀 노선표",
+    "description": "학원 홈페이지의 이매 캠퍼스 셔틀 운행 노선·시간표 (실시간 반영)",
+    "drive_url": "https://buly.kr/9XOCFtb",
     "download_url": "",
-    "updated": "2026-10-15",
-    "keywords": "CI·로고·심볼·브랜드·BI·엠블럼"
+    "updated": "2026-10-16",
+    "keywords": "셔틀·노선표·시간표·운행·버스·노선·이매 셔틀·이매 노선",
+    "file_type": "링크"
   },
   {
-    "id": "file-shuttle-form",
-    "title": "이매 지입셔틀 수수료 품의 양식",
-    "category": "품의 양식",
-    "description": "매월 이매 지입셔틀(23·24·25호) 수수료 품의서 템플릿 (3.3% gross-up 반영)",
-    "drive_url": "https://drive.google.com/drive/folders/REPLACE_ME",
+    "id": "shuttle-suji",
+    "title": "수지 캠퍼스 셔틀 노선표",
+    "category": "셔틀 노선표",
+    "description": "학원 홈페이지의 수지 캠퍼스 셔틀 운행 노선·시간표 (실시간 반영)",
+    "drive_url": "https://buly.kr/AljMRmo",
     "download_url": "",
-    "updated": "2026-10-15",
-    "keywords": "셔틀·지입·수수료·품의·이매·양식·템플릿"
+    "updated": "2026-10-16",
+    "keywords": "셔틀·노선표·시간표·운행·버스·노선·수지 셔틀·수지 노선",
+    "file_type": "링크"
+  },
+  {
+    "id": "shuttle-gwanggyo",
+    "title": "광교 캠퍼스 셔틀 노선표",
+    "category": "셔틀 노선표",
+    "description": "학원 홈페이지의 광교 캠퍼스 셔틀 운행 노선·시간표 (실시간 반영)",
+    "drive_url": "https://buly.kr/5JPjZ6r",
+    "download_url": "",
+    "updated": "2026-10-16",
+    "keywords": "셔틀·노선표·시간표·운행·버스·노선·광교 셔틀·광교 노선",
+    "file_type": "링크"
+  },
+  {
+    "id": "shuttle-yeongtong",
+    "title": "영통 캠퍼스 셔틀 노선표",
+    "category": "셔틀 노선표",
+    "description": "학원 홈페이지의 영통 캠퍼스 셔틀 운행 노선·시간표 (실시간 반영)",
+    "drive_url": "https://buly.kr/4xWiwJB",
+    "download_url": "",
+    "updated": "2026-10-16",
+    "keywords": "셔틀·노선표·시간표·운행·버스·노선·영통 셔틀·영통 노선",
+    "file_type": "링크"
   }
 ]
