@@ -371,6 +371,39 @@ body {
 .campus-link .cl-arrow { color: var(--muted); font-size: 13px; }
 .campus-link:hover .cl-arrow { color: var(--orange); }
 
+/* 자주 쓰는 링크 카드 */
+.link-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px; margin-bottom: 20px;
+}
+.link-card {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px 16px; background: white;
+  border: 1px solid var(--line); border-radius: 12px;
+  text-decoration: none; color: var(--ink);
+  transition: all 0.15s;
+}
+.link-card:hover {
+  border-color: var(--orange);
+  box-shadow: 0 6px 16px -6px rgba(23,33,47,0.08);
+  transform: translateY(-1px);
+}
+.link-card .lc-head { display: flex; align-items: center; justify-content: space-between; }
+.link-card .lc-ic {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--purple-soft); color: var(--purple);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.link-card .lc-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+  padding: 3px 8px; background: var(--purple-soft); color: var(--purple);
+  border-radius: 999px; text-transform: uppercase;
+}
+.link-card .lc-title { font-size: 13px; font-weight: 600; line-height: 1.4; }
+.link-card .lc-cta { font-size: 11px; color: var(--orange-deep); font-weight: 600; margin-top: auto; }
+.link-card:hover .lc-cta { color: var(--orange-deep); text-decoration: underline; }
+
 /* 카테고리별 아이콘 색 (파스텔) */
 .dash-card[data-cat="contacts"] .icon { background: var(--orange-wash); color: var(--orange-deep); }
 .dash-card[data-cat="tuition"] .icon { background: #FEF3C7; color: #B45309; }
@@ -1244,6 +1277,9 @@ function renderSidebar() {
       <div class="sidebar-item" onclick="window.open('https://drive.google.com/drive/folders/18EmHVzVXSDsZWph5wWFxAqS3WJ5OUq4b','_blank','noopener')">
         📁 CS 행정자료 <span class="sidebar-count">${(DATA.files||[]).length}</span>
       </div>
+      <div class="sidebar-item ${CURRENT.category==='files' && CURRENT.subcategory==='자주 쓰는 링크' ? 'is-active' : ''}" onclick="goCategory('files','자주 쓰는 링크')">
+        🔗 자주 쓰는 링크 <span class="sidebar-count">${(DATA.files||[]).filter(f=>f.category==='자주 쓰는 링크').length}</span>
+      </div>
     </div>
 
     <div class="${secClass('contacts')}">
@@ -1423,6 +1459,48 @@ function renderHome() {
         </a>
       `).join('')}
     </div>
+
+    ${(() => {
+      const linkItems = (DATA.files||[]).filter(f => f.category === '자주 쓰는 링크');
+      if (linkItems.length === 0) return '';
+      // 캠퍼스·관별 그룹핑
+      const groups = {};
+      linkItems.forEach(f => {
+        const key = `${f.campus||'기타'}|${f.gwan||''}`;
+        if (!groups[key]) groups[key] = { campus: f.campus, gwan: f.gwan, items: [] };
+        groups[key].items.push(f);
+      });
+      const typeIconMap = {
+        '입학테스트': '📝', '설명회': '🎤', '상담': '💬', '약도': '🗺',
+        '커뮤니티': '👥', '매뉴얼': '📘', '앱': '📱', '정책': '💰'
+      };
+      return `
+        <div class="section-head" style="margin-top:36px;">
+          <h2>자주 쓰는 링크</h2>
+          <span style="font-size:12px; color:var(--muted);">상담 중 바로 열어서 쓰는 캠퍼스·관별 링크</span>
+        </div>
+        ${Object.values(groups).map(g => `
+          <div style="margin-top:14px;">
+            <div style="font-size:13px; font-weight:600; color:var(--ink); margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+              <span style="padding:3px 10px; background:var(--orange); color:white; border-radius:999px; font-size:11px;">${escapeHtml(g.campus||'')} ${escapeHtml(g.gwan||'')}</span>
+              <span style="color:var(--muted); font-weight:500;">${g.items.length}개 링크</span>
+            </div>
+            <div class="link-grid">
+              ${g.items.map(f => `
+                <a class="link-card" href="${escapeAttr(f.drive_url)}" target="_blank" rel="noopener">
+                  <div class="lc-head">
+                    <span class="lc-ic">${typeIconMap[f.type_tag]||'🔗'}</span>
+                    <span class="lc-tag">${escapeHtml(f.type_tag||'')}</span>
+                  </div>
+                  <div class="lc-title">${escapeHtml(f.title.replace(`${g.campus||''} ${g.gwan||''}`, '').trim() || f.title)}</div>
+                  <div class="lc-cta">바로가기 →</div>
+                </a>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      `;
+    })()}
   `;
 }
 
@@ -1541,8 +1619,11 @@ function allItems() {
   const files = (DATA.files||[]).map(f => ({
     id: f.id, category: 'files', subcategory: f.category || '행정자료',
     title: f.title, content: f.description || '',
-    search_text: [f.title, f.description, f.category, f.keywords].filter(Boolean).join(' '),
-    tags: [f.category, '행정자료', '파일', '다운로드'].filter(Boolean),
+    campus: f.campus || '',
+    gwan: f.gwan || '',
+    type_tag: f.type_tag || '',
+    search_text: [f.title, f.description, f.category, f.keywords, f.campus, f.gwan, f.type_tag].filter(Boolean).join(' '),
+    tags: [f.category, f.type_tag, f.campus, f.gwan, '파일'].filter(Boolean),
     drive_url: f.drive_url, download_url: f.download_url,
   }));
   return [...DATA.contacts, ...DATA.tuition, ...DATA.admin, ...DATA.parent_response, ...DATA.cs_appreciation, ...DATA.campus_guide, ...files];
@@ -2007,7 +2088,7 @@ const FlowBot = (function() {
       { icon: '📘', q: '환불 응대 매뉴얼 알려주세요', color: '#D1FAE5' },
       { icon: '🚌', q: '수내 셔틀 노선도 알려주세요', color: '#DBEAFE' },
       { icon: '📍', q: '광교 중등관 위치가 어디인가요?', color: '#FCE7F3' },
-      { icon: '📢', q: '성범죄조회 발급 방법 알려주세요', color: '#F3E8FF' },
+      { icon: '🔗', q: '수내 중등관 입학테스트 예약 링크', color: '#F3E8FF' },
     ];
     suggestions.forEach(s => {
       const btn = document.createElement('button');
