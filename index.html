@@ -400,9 +400,36 @@ body {
   padding: 3px 8px; background: var(--purple-soft); color: var(--purple);
   border-radius: 999px; text-transform: uppercase;
 }
-.link-card .lc-title { font-size: 13px; font-weight: 600; line-height: 1.4; }
-.link-card .lc-cta { font-size: 11px; color: var(--orange-deep); font-weight: 600; margin-top: auto; }
-.link-card:hover .lc-cta { color: var(--orange-deep); text-decoration: underline; }
+.link-card .lc-title { font-size: 13px; font-weight: 600; line-height: 1.4; min-height: 36px; }
+.link-card .lc-actions {
+  display: flex; gap: 6px; margin-top: 8px; align-items: center;
+}
+.link-card .lc-btn {
+  flex: 1; padding: 7px 10px; font-size: 11px; font-weight: 600;
+  background: #F3F4F6; color: var(--ink); border: 1px solid var(--line);
+  border-radius: 7px; cursor: pointer; white-space: nowrap;
+  transition: all 0.12s;
+}
+.link-card .lc-btn:hover { background: #E5E7EB; border-color: #D1D5DB; }
+.link-card .lc-btn.primary {
+  background: var(--orange); color: white; border-color: var(--orange);
+}
+.link-card .lc-btn.primary:hover { background: var(--orange-deep); border-color: var(--orange-deep); }
+.link-card .lc-btn.icon {
+  flex: 0 0 auto; padding: 7px 9px;
+}
+.link-card .lc-btn.copied { background: #10B981 !important; color: white !important; border-color: #10B981 !important; }
+
+/* 복사 토스트 */
+.copy-toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  padding: 12px 20px; background: var(--ink); color: white;
+  border-radius: 10px; font-size: 13px; font-weight: 600;
+  box-shadow: 0 10px 30px -8px rgba(0,0,0,0.3);
+  z-index: 9999; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.copy-toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
 
 /* 카테고리별 아이콘 색 (파스텔) */
 .dash-card[data-cat="contacts"] .icon { background: var(--orange-wash); color: var(--orange-deep); }
@@ -1474,6 +1501,7 @@ function renderHome() {
         '입학테스트': '📝', '설명회': '🎤', '상담': '💬', '약도': '🗺',
         '커뮤니티': '👥', '매뉴얼': '📘', '앱': '📱', '정책': '💰'
       };
+      const esc = s => (s||'').replace(/'/g, "\\'").replace(/"/g, '&quot;');
       return `
         <div class="section-head" style="margin-top:36px;">
           <h2>자주 쓰는 링크</h2>
@@ -1487,14 +1515,18 @@ function renderHome() {
             </div>
             <div class="link-grid">
               ${g.items.map(f => `
-                <a class="link-card" href="${escapeAttr(f.drive_url)}" target="_blank" rel="noopener">
+                <div class="link-card">
                   <div class="lc-head">
                     <span class="lc-ic">${typeIconMap[f.type_tag]||'🔗'}</span>
                     <span class="lc-tag">${escapeHtml(f.type_tag||'')}</span>
                   </div>
                   <div class="lc-title">${escapeHtml(f.title.replace(`${g.campus||''} ${g.gwan||''}`, '').trim() || f.title)}</div>
-                  <div class="lc-cta">바로가기 →</div>
-                </a>
+                  <div class="lc-actions">
+                    <button type="button" class="lc-btn primary" onclick="copyLinkById('${esc(f.id)}')">📋 링크 복사</button>
+                    <button type="button" class="lc-btn" onclick="copyMessageById('${esc(f.id)}')">💬 안내문구와 복사</button>
+                    <button type="button" class="lc-btn icon" onclick="window.open('${esc(f.drive_url)}','_blank','noopener')" title="열어보기">👁</button>
+                  </div>
+                </div>
               `).join('')}
             </div>
           </div>
@@ -1762,6 +1794,74 @@ function escapeAttr(s) {
   return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,'\\\'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'\\n');
 }
 
+// 유형별 안내문구 템플릿
+const LINK_MESSAGE_TEMPLATES = {
+  '입학테스트': '입학테스트 예약은 아래 링크로 신청해주세요.',
+  '설명회': '설명회 신청은 아래 링크로 접수해주세요.',
+  '상담': '아래 카카오톡 채널로 문의 주세요.',
+  '약도': '오시는 길 안내입니다.',
+  '커뮤니티': '학부모 소통 네이버 밴드 초대 링크입니다.',
+  '매뉴얼': '학습 플랫폼 사용 안내입니다.',
+  '앱': '학원친구 앱 설치 안내입니다.',
+  '정책': '수강료 반환 기준은 아래 링크에서 확인하실 수 있습니다.'
+};
+
+async function copyText(text, triggerBtn, toastMsg) {
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    ok = true;
+  } catch (e) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (e2) { ok = false; }
+  }
+  if (ok) {
+    showCopyToast(toastMsg || '✓ 복사되었습니다');
+    if (triggerBtn) {
+      const original = triggerBtn.innerHTML;
+      triggerBtn.classList.add('copied');
+      triggerBtn.innerHTML = '✓ 복사됨';
+      setTimeout(() => { triggerBtn.classList.remove('copied'); triggerBtn.innerHTML = original; }, 1500);
+    }
+  } else {
+    showCopyToast('복사 실패 — 수동 복사 필요');
+  }
+  return ok;
+}
+
+function showCopyToast(msg) {
+  let t = document.getElementById('copyToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'copyToast';
+    t.className = 'copy-toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._copyToastTimer);
+  window._copyToastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function copyLinkById(id) {
+  const f = (DATA.files||[]).find(x => x.id === id);
+  if (!f || !f.drive_url) return;
+  copyText(f.drive_url, event && event.currentTarget, '✓ 링크가 복사되었습니다');
+}
+
+function copyMessageById(id) {
+  const f = (DATA.files||[]).find(x => x.id === id);
+  if (!f || !f.drive_url) return;
+  const intro = LINK_MESSAGE_TEMPLATES[f.type_tag] || '아래 링크를 확인해주세요.';
+  const text = `${intro}\n${f.drive_url}`;
+  copyText(text, event && event.currentTarget, '✓ 안내문구와 함께 복사되었습니다');
+}
+
 function copyItem(id) {
   const item = allItems().find(x => x.id === id);
   if (!item) return;
@@ -1925,13 +2025,33 @@ const FlowBot = (function() {
 
       // 파일 카테고리: Drive 열기 버튼만 (다운로드는 Drive에서 수행)
       if (detailItem.category === 'files' && (detailItem.drive_url || detailItem.download_url)) {
+        // "자주 쓰는 링크" (type_tag 있는 경우): 복사 2개 + 열기
+        if (detailItem.type_tag && detailItem.drive_url) {
+          const copyLink = document.createElement('button');
+          copyLink.textContent = '📋 링크 복사';
+          copyLink.style.cssText = 'padding:7px 14px; background:var(--orange); color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit;';
+          copyLink.onclick = (e) => { e.stopPropagation(); copyText(detailItem.drive_url, copyLink, '✓ 링크가 복사되었습니다'); };
+          linkEl.appendChild(copyLink);
+
+          const copyMsg = document.createElement('button');
+          copyMsg.textContent = '💬 안내문구와 복사';
+          copyMsg.style.cssText = 'padding:7px 14px; background:#F3F4F6; color:var(--ink); border:1px solid var(--line); border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit;';
+          copyMsg.onclick = (e) => {
+            e.stopPropagation();
+            const intro = LINK_MESSAGE_TEMPLATES[detailItem.type_tag] || '아래 링크를 확인해주세요.';
+            copyText(`${intro}\n${detailItem.drive_url}`, copyMsg, '✓ 안내문구와 함께 복사되었습니다');
+          };
+          linkEl.appendChild(copyMsg);
+        }
         if (detailItem.drive_url) {
           const open = document.createElement('a');
           open.href = detailItem.drive_url; open.target = '_blank'; open.rel = 'noopener';
           // 구글 드라이브 vs 외부 링크 자동 분기
           const isDrive = /drive\.google\.com/.test(detailItem.drive_url);
-          open.textContent = isDrive ? '🔗 구글 드라이브 열기' : '🔗 홈페이지에서 열기';
-          open.style.cssText = 'padding:7px 14px; background:#1a73e8; color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit; text-decoration:none; display:inline-block;';
+          open.textContent = detailItem.type_tag ? '👁 열어보기' : (isDrive ? '🔗 구글 드라이브 열기' : '🔗 홈페이지에서 열기');
+          open.style.cssText = detailItem.type_tag
+            ? 'padding:7px 12px; background:#F3F4F6; color:var(--ink); border:1px solid var(--line); border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit; text-decoration:none; display:inline-block;'
+            : 'padding:7px 14px; background:#1a73e8; color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit; text-decoration:none; display:inline-block;';
           linkEl.appendChild(open);
         }
         // 링크가 REPLACE_ME거나 비어 있으면 안내
