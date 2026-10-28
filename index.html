@@ -12,29 +12,30 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 :root {
-  /* Flow CS Hub Brand v2 (2026-10-28) — 오렌지 identity + 퍼플 포인트 + 크림 바탕 */
-  --orange: #F97316;
-  --orange-deep: #EA580C;
-  --orange-light: #FDBA74;
-  --orange-wash: #FFF4E6;
-  --purple: #4F46E5;
-  --purple-soft: #EEF2FF;
+  /* Flow CS Hub Brand v3 (2026-10-28) — SaaS 업무 플랫폼 톤: 중성 그레이 바탕 + 오렌지 강조 + 보라 AI */
+  --orange: #FF7621;
+  --orange-deep: #E85D00;
+  --orange-light: #FFB380;
+  --orange-wash: #FFF2E6;
+  --purple: #6C4CE4;
+  --purple-soft: #EFEAFB;
   --cream: #FFF8F0;
-  --ink: #0A0A0A;
-  --body: #525252;
-  --muted: #A3A3A3;
-  --line: #EFEBE4;
+  --ink: #17212F;
+  --body: #4B5563;
+  --muted: #9CA3AF;
+  --line: #E7EAF0;
   --paper: #FFFFFF;
   --surface: #FFFFFF;
-  --hover: #FFF4E6;
-  --active: #FFE8CC;
-  /* 기존 호환 (코드 깨짐 방지) */
+  --bg: #F8F9FB;
+  --hover: #F3F5F9;
+  --active: #FFF2E6;
+  --success: #16866F;
+  /* 기존 호환 */
   --primary: var(--ink);
   --primary-light: var(--orange-deep);
   --accent: var(--orange);
   --sand: var(--orange-light);
-  --bg: var(--cream);
-  --shadow: 0 4px 12px rgba(10,10,10,0.06);
+  --shadow: 0 4px 12px rgba(23,33,47,0.06);
 }
 body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
@@ -46,9 +47,10 @@ body {
 /* 상단 헤더 — 얇고 조용히 */
 .header {
   position: sticky; top: 0; z-index: 10;
-  background: var(--cream);
+  background: var(--bg);
   padding: 14px 24px;
   display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  border-bottom: 1px solid var(--line);
 }
 .logo {
   font-family: 'Space Grotesk', 'Pretendard', sans-serif;
@@ -66,11 +68,40 @@ body {
   font-size: 12.5px; color: var(--body);
 }
 .src-dot { width: 7px; height: 7px; border-radius: 50%; background: #10B981; display: inline-block; }
-/* 레이아웃 */
+/* 레이아웃 3단: 사이드바 + 메인 + 챗봇 패널 */
 .layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr) 460px;
   min-height: calc(100vh - 60px);
+}
+@media (max-width: 1280px) {
+  .layout { grid-template-columns: 220px minmax(0, 1fr) 400px; }
+}
+@media (max-width: 1024px) {
+  .layout { grid-template-columns: 220px 1fr; }
+  .chatbot-panel { display: none; }
+}
+/* 챗봇 상시 패널 (데스크톱) */
+.chatbot-panel {
+  background: white;
+  border-left: 1px solid var(--line);
+  position: sticky; top: 60px;
+  height: calc(100vh - 60px);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+/* 챗봇 창이 패널로 도킹된 상태 */
+#flow-bot-window.docked {
+  position: static !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  display: flex !important;
+  right: auto !important; bottom: auto !important; left: auto !important; top: auto !important;
 }
 /* 사이드바 */
 .sidebar {
@@ -294,6 +325,34 @@ body {
 }
 .dash-card .count .unit { font-size: 13px; color: var(--muted); font-weight: 700; margin-left: 1px; }
 .dash-card .desc { display: none; }
+
+/* 캠퍼스 바로가기 (외부 링크) */
+.campus-links {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px; margin-bottom: 32px;
+}
+.campus-link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; background: white;
+  border: 1px solid var(--line); border-radius: 12px;
+  text-decoration: none; color: var(--ink);
+  font-weight: 600; font-size: 14px;
+  transition: all 0.15s;
+}
+.campus-link:hover {
+  border-color: var(--orange);
+  box-shadow: 0 6px 16px -6px rgba(23,33,47,0.08);
+  transform: translateY(-1px);
+}
+.campus-link .cl-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--orange-wash); color: var(--orange-deep);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.campus-link .cl-label { flex: 1; }
+.campus-link .cl-arrow { color: var(--muted); font-size: 13px; }
+.campus-link:hover .cl-arrow { color: var(--orange); }
 
 /* 카테고리별 아이콘 색 (파스텔) */
 .dash-card[data-cat="contacts"] .icon { background: var(--orange-wash); color: var(--orange-deep); }
@@ -617,6 +676,9 @@ body {
 
   <!-- 메인 콘텐츠 -->
   <main class="main" id="main"></main>
+
+  <!-- 챗봇 상시 패널 (데스크톱 ≥1025px) -->
+  <aside class="chatbot-panel" id="chatbotPanel"></aside>
 </div>
 
 <!-- 백드롭 (모바일 사이드바 배경) -->
@@ -1246,6 +1308,26 @@ function renderHome() {
           <h3>CS 행정자료</h3>
         </div>
       </div>
+    </div>
+
+    <div class="section-head" style="margin-top:36px;">
+      <h2>캠퍼스 바로가기</h2>
+      <span style="font-size:12px; color:var(--muted);">학원 홈페이지 외부 링크</span>
+    </div>
+    <div class="campus-links">
+      ${[
+        { label: '분당 캠퍼스', url: 'https://flowedu.net/BUNDANG' },
+        { label: '이매 캠퍼스', url: 'https://flowedu.net/IMAE' },
+        { label: '수지 캠퍼스', url: 'https://flowedu.net/SUJI' },
+        { label: '광교 캠퍼스', url: 'https://flowedu.net/GWANGGYO' },
+        { label: '영통 캠퍼스', url: 'https://flowedu.net/YEONGTONG' },
+      ].map(c => `
+        <a class="campus-link" href="${c.url}" target="_blank" rel="noopener">
+          <span class="cl-icon">🏫</span>
+          <span class="cl-label">${c.label}</span>
+          <span class="cl-arrow">↗</span>
+        </a>
+      `).join('')}
     </div>
   `;
 }
@@ -2284,7 +2366,36 @@ const FlowBot = (function() {
 })();
 
 // ==================== 시작 ====================
-loadData().then(() => FlowBot.init());
+loadData().then(() => {
+  FlowBot.init();
+  setupChatbotLayout();
+});
+
+// 챗봇: 데스크톱 ≥1025 → 오른쪽 패널로 도킹 / 그 미만 → 플로팅 FAB
+function setupChatbotLayout() {
+  const win = document.getElementById('flow-bot-window');
+  const panel = document.getElementById('chatbotPanel');
+  const fab = document.getElementById('flow-bot-fab');
+  const badge = document.getElementById('flow-bot-fab-badge');
+  if (!win || !panel) return;
+  const isDesktop = window.matchMedia('(min-width: 1025px)').matches;
+  if (isDesktop) {
+    if (win.parentElement !== panel) panel.appendChild(win);
+    win.classList.add('open', 'docked');
+    if (fab) fab.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+  } else {
+    if (win.parentElement !== document.body) document.body.appendChild(win);
+    win.classList.remove('docked');
+    if (fab) fab.style.display = '';
+    if (badge) badge.style.display = '';
+  }
+}
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(setupChatbotLayout, 150);
+});
 </script>
 </body>
 </html>
