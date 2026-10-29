@@ -1199,10 +1199,12 @@ function goHome() { location.hash = ''; closeSidebar(); }
 function goCategory(cat, sub) {
   location.hash = sub ? `#/${cat}/${encodeURIComponent(sub)}` : `#/${cat}`;
   closeSidebar();
+  try { FlowLog.send('category_view', { category: cat, target_id: sub || '' }); } catch (e) {}
 }
 function goDetail(id) {
   location.hash = `#/detail/${id}`;
   closeSidebar();
+  try { FlowLog.send('detail_view', { target_id: id }); } catch (e) {}
 }
 /* 모바일 사이드바 토글 */
 function toggleSidebar() {
@@ -1533,6 +1535,10 @@ function renderHome() {
         `).join('')}
       `;
     })()}
+
+    <div style="margin-top:40px; padding:12px 16px; background:#F3F4F6; border-radius:8px; font-size:11px; color:var(--muted); text-align:center;">
+      ※ 상담 품질 개선을 위해 질문·사용 기록을 익명으로 수집합니다 (개인정보 미수집)
+    </div>
   `;
 }
 
@@ -1789,6 +1795,65 @@ function renderDetail() {
 function escapeHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+
+// ==================== 사용 로그 (자동·익명) ====================
+// 배포 가이드: google-apps-script/log_usage.gs 상단 주석 참고
+// FLOW_LOG_URL 이 비어있으면 로깅 전부 noop (안전)
+const FLOW_LOG_URL = 'https://script.google.com/macros/s/REPLACE_ME_WEB_APP_URL/exec';
+const FlowLog = (function() {
+  let visitorId = '';
+  let sessionId = '';
+  let uaSummary = '';
+
+  function _initIds() {
+    try {
+      visitorId = localStorage.getItem('flow_cs_visitor_id') || '';
+      if (!visitorId) {
+        visitorId = 'v-' + Math.random().toString(36).slice(2, 8) + '-' + Date.now().toString(36).slice(-4);
+        localStorage.setItem('flow_cs_visitor_id', visitorId);
+      }
+    } catch (e) { visitorId = 'v-anon'; }
+    sessionId = 's-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+    const ua = navigator.userAgent || '';
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(ua);
+    const browser = /Chrome\/[\d.]+/.exec(ua)?.[0] || /Safari\/[\d.]+/.exec(ua)?.[0] || 'Other';
+    uaSummary = `${isMobile ? '모바일' : 'PC'}·${browser.split('/')[0]}`;
+  }
+
+  function send(event, data) {
+    if (!FLOW_LOG_URL || FLOW_LOG_URL.includes('REPLACE_ME')) return;
+    const payload = Object.assign({
+      event,
+      visitor_id: visitorId,
+      session_id: sessionId,
+      ua_summary: uaSummary,
+      referrer: document.referrer || '',
+    }, data || {});
+    try {
+      // fire-and-forget — 응답 안 기다림, 실패해도 UX 영향 없음
+      fetch(FLOW_LOG_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  function init() {
+    _initIds();
+    send('visit', {});
+  }
+
+  return { init, send };
+})();
+// 페이지 로드 완료 후 자동 visit 기록
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => FlowLog.init());
+} else {
+  FlowLog.init();
+}
 // onclick 등 HTML attribute 안에 안전하게 넣기 위한 escape (JS 문자열 escape 포함)
 function escapeAttr(s) {
   return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,'\\\'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'\\n');
@@ -1852,6 +1917,7 @@ function copyLinkById(id) {
   const f = (DATA.files||[]).find(x => x.id === id);
   if (!f || !f.drive_url) return;
   copyText(f.drive_url, event && event.currentTarget, '✓ 링크가 복사되었습니다');
+  try { FlowLog.send('copy_link', { target_id: id, target_url: f.drive_url, category: f.type_tag || '' }); } catch (e) {}
 }
 
 function copyMessageById(id) {
@@ -1860,6 +1926,7 @@ function copyMessageById(id) {
   const intro = LINK_MESSAGE_TEMPLATES[f.type_tag] || '아래 링크를 확인해주세요.';
   const text = `${intro}\n${f.drive_url}`;
   copyText(text, event && event.currentTarget, '✓ 안내문구와 함께 복사되었습니다');
+  try { FlowLog.send('copy_message', { target_id: id, target_url: f.drive_url, category: f.type_tag || '' }); } catch (e) {}
 }
 
 function copyItem(id) {
@@ -2106,6 +2173,16 @@ const FlowBot = (function() {
       // 로컬 검색 + 템플릿 포맷 (LLM 없음, 즉시 응답)
       const hits = searchLocal(text);
       const quality = evaluateAnswerQuality(text, hits);
+
+      // 사용 로그: 질문·결과 품질·최상위 매칭 id
+      try {
+        FlowLog.send('search', {
+          query: text,
+          result_quality: quality || (hits.length ? 'GOOD' : 'NONE'),
+          target_id: hits[0]?.id || '',
+          category: hits[0]?.category || '',
+        });
+      } catch (e) {}
 
       // 캠퍼스 미매칭 폴백 안내 (searchLocal이 _NO_CAMPUS_DATA를 심어둠)
       if (hits.length === 0 && window._NO_CAMPUS_DATA) {
