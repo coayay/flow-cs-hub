@@ -401,6 +401,12 @@ body {
   border-radius: 999px; text-transform: uppercase;
 }
 .link-card .lc-title { font-size: 13px; font-weight: 600; line-height: 1.4; min-height: 36px; }
+.link-card .lc-preview {
+  font-size: 11px; color: var(--muted); line-height: 1.5;
+  padding: 8px 10px; background: #FAFBFC; border-radius: 7px;
+  border-left: 2px solid var(--purple-soft);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 .link-card .lc-actions {
   display: flex; gap: 6px; margin-top: 8px; align-items: center;
 }
@@ -1489,56 +1495,71 @@ function renderHome() {
       `).join('')}
     </div>
 
-    ${(() => {
-      const linkItems = (DATA.files||[]).filter(f => f.category === '자주 쓰는 링크');
-      if (linkItems.length === 0) return '';
-      // 캠퍼스·관별 그룹핑
-      const groups = {};
-      linkItems.forEach(f => {
-        const key = `${f.campus||'기타'}|${f.gwan||''}`;
-        if (!groups[key]) groups[key] = { campus: f.campus, gwan: f.gwan, items: [] };
-        groups[key].items.push(f);
-      });
-      const typeIconMap = {
-        '입학테스트': '📝', '설명회': '🎤', '상담': '💬', '약도': '🗺',
-        '커뮤니티': '👥', '매뉴얼': '📘', '앱': '📱', '정책': '💰'
-      };
-      const esc = s => (s||'').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-      return `
-        <div class="section-head" style="margin-top:36px;">
-          <h2>자주 쓰는 링크</h2>
-          <span style="font-size:12px; color:var(--muted);">상담 중 바로 열어서 쓰는 캠퍼스·관별 링크</span>
-        </div>
-        ${Object.values(groups).map(g => `
-          <div style="margin-top:14px;">
-            <div style="font-size:13px; font-weight:600; color:var(--ink); margin-bottom:10px; display:flex; align-items:center; gap:8px;">
-              <span style="padding:3px 10px; background:var(--orange); color:white; border-radius:999px; font-size:11px;">${escapeHtml(g.campus||'')} ${escapeHtml(g.gwan||'')}</span>
-              <span style="color:var(--muted); font-weight:500;">${g.items.length}개 링크</span>
-            </div>
-            <div class="link-grid">
-              ${g.items.map(f => `
-                <div class="link-card">
-                  <div class="lc-head">
-                    <span class="lc-ic">${typeIconMap[f.type_tag]||'🔗'}</span>
-                    <span class="lc-tag">${escapeHtml(f.type_tag||'')}</span>
-                  </div>
-                  <div class="lc-title">${escapeHtml(f.title.replace(`${g.campus||''} ${g.gwan||''}`, '').trim() || f.title)}</div>
-                  <div class="lc-actions">
-                    <button type="button" class="lc-btn primary" onclick="copyLinkById('${esc(f.id)}')">📋 링크 복사</button>
-                    <button type="button" class="lc-btn" onclick="copyMessageById('${esc(f.id)}')">💬 안내문구와 복사</button>
-                    <button type="button" class="lc-btn icon" onclick="window.open('${esc(f.drive_url)}','_blank','noopener')" title="열어보기">👁</button>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `).join('')}
-      `;
-    })()}
+    ${renderLinkCardsSection((DATA.files||[]).filter(f => f.category === '자주 쓰는 링크'), {heading: '자주 쓰는 링크', sub: '상담 중 바로 열어서 쓰는 캠퍼스·관별 링크'})}
 
     <div style="margin-top:40px; padding:12px 16px; background:#F3F4F6; border-radius:8px; font-size:11px; color:var(--muted); text-align:center;">
       ※ 상담 품질 개선을 위해 질문·사용 기록을 익명으로 수집합니다 (개인정보 미수집)
     </div>
+  `;
+}
+
+// 자주 쓰는 링크 섹션 렌더링 (홈·카테고리 뷰 공용)
+function renderLinkCardsSection(linkItems, opts) {
+  opts = opts || {};
+  if (!linkItems || linkItems.length === 0) return '';
+  const groups = {};
+  linkItems.forEach(f => {
+    const key = `${f.campus||'기타'}|${f.gwan||''}`;
+    if (!groups[key]) groups[key] = { campus: f.campus, gwan: f.gwan, items: [] };
+    groups[key].items.push(f);
+  });
+  const typeIconMap = {
+    '입학테스트': '📝', '설명회': '🎤', '상담': '💬', '약도': '🗺',
+    '커뮤니티': '👥', '매뉴얼': '📘', '앱': '📱', '정책': '💰'
+  };
+  const typeMsgMap = {
+    '입학테스트': '입학테스트 예약은 아래 링크로 신청해주세요.',
+    '설명회': '설명회 신청은 아래 링크로 접수해주세요.',
+    '상담': '아래 카카오톡 채널로 문의 주세요.',
+    '약도': '오시는 길 안내입니다.',
+    '커뮤니티': '학부모 소통 네이버 밴드 초대 링크입니다.',
+    '매뉴얼': '학습 플랫폼 사용 안내입니다.',
+    '앱': '학원친구 앱 설치 안내입니다.',
+    '정책': '수강료 반환 기준은 아래 링크에서 확인하실 수 있습니다.'
+  };
+  const esc = s => (s||'').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const headingBlock = opts.heading ? `
+    <div class="section-head" style="margin-top:${opts.marginTop||'36px'};">
+      <h2>${escapeHtml(opts.heading)}</h2>
+      ${opts.sub ? `<span style="font-size:12px; color:var(--muted);">${escapeHtml(opts.sub)}</span>` : ''}
+    </div>` : '';
+  return `
+    ${headingBlock}
+    ${Object.values(groups).map(g => `
+      <div style="margin-top:14px;">
+        <div style="font-size:13px; font-weight:600; color:var(--ink); margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+          <span style="padding:3px 10px; background:var(--orange); color:white; border-radius:999px; font-size:11px;">${escapeHtml(g.campus||'')} ${escapeHtml(g.gwan||'')}</span>
+          <span style="color:var(--muted); font-weight:500;">${g.items.length}개 링크</span>
+        </div>
+        <div class="link-grid">
+          ${g.items.map(f => `
+            <div class="link-card">
+              <div class="lc-head">
+                <span class="lc-ic">${typeIconMap[f.type_tag]||'🔗'}</span>
+                <span class="lc-tag">${escapeHtml(f.type_tag||'')}</span>
+              </div>
+              <div class="lc-title">${escapeHtml(f.title.replace(`${g.campus||''} ${g.gwan||''}`, '').trim() || f.title)}</div>
+              <div class="lc-preview" title="안내문구와 복사 시 이 문장이 링크와 함께 복사됩니다">💬 "${escapeHtml(typeMsgMap[f.type_tag]||'아래 링크를 확인해주세요.')}"</div>
+              <div class="lc-actions">
+                <button type="button" class="lc-btn primary" onclick="copyLinkById('${esc(f.id)}')">📋 링크 복사</button>
+                <button type="button" class="lc-btn" onclick="copyMessageById('${esc(f.id)}')">💬 안내문구와 복사</button>
+                <button type="button" class="lc-btn icon" onclick="window.open('${esc(f.drive_url)}','_blank','noopener')" title="열어보기">👁</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}
   `;
 }
 
@@ -1547,6 +1568,22 @@ function renderCategory() {
   const m = document.getElementById('main');
   const cat = CURRENT.category;
   const sub = CURRENT.subcategory;
+
+  // 「자주 쓰는 링크」 전용 뷰
+  if (cat === 'files' && sub === '자주 쓰는 링크') {
+    const linkItems = (DATA.files||[]).filter(f => f.category === '자주 쓰는 링크');
+    m.innerHTML = `
+      <div class="breadcrumb">
+        <span onclick="goHome()" style="cursor:pointer">홈</span> ›
+        <span>자주 쓰는 링크</span>
+      </div>
+      <h1 class="page-title">🔗 자주 쓰는 링크</h1>
+      <div class="page-sub">${linkItems.length}건 · 상담 중 바로 열어서 쓰는 캠퍼스·관별 링크</div>
+      ${renderLinkCardsSection(linkItems, {marginTop:'0px'})}
+    `;
+    return;
+  }
+
   const catInfo = DATA.meta.categories.find(c => c.key === cat);
   const items = DATA[cat] || [];
 
@@ -2092,8 +2129,14 @@ const FlowBot = (function() {
 
       // 파일 카테고리: Drive 열기 버튼만 (다운로드는 Drive에서 수행)
       if (detailItem.category === 'files' && (detailItem.drive_url || detailItem.download_url)) {
-        // "자주 쓰는 링크" (type_tag 있는 경우): 복사 2개 + 열기
+        // "자주 쓰는 링크" (type_tag 있는 경우): 안내문구 미리보기 + 복사 2개 + 열기
         if (detailItem.type_tag && detailItem.drive_url) {
+          const intro = LINK_MESSAGE_TEMPLATES[detailItem.type_tag] || '아래 링크를 확인해주세요.';
+          const preview = document.createElement('div');
+          preview.style.cssText = 'width:100%; padding:8px 10px; background:#FAFBFC; border-left:2px solid var(--purple-soft); border-radius:7px; font-size:11px; color:var(--muted); line-height:1.5; margin-bottom:4px;';
+          preview.innerHTML = `💬 "${escapeHtml(intro)}"<br><span style="color:var(--purple); font-weight:600;">${escapeHtml(detailItem.drive_url)}</span>`;
+          linkEl.appendChild(preview);
+
           const copyLink = document.createElement('button');
           copyLink.textContent = '📋 링크 복사';
           copyLink.style.cssText = 'padding:7px 14px; background:var(--orange); color:white; border:none; border-radius:16px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit;';
