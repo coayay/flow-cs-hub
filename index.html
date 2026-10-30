@@ -1543,17 +1543,17 @@ function renderLinkCardsSection(linkItems, opts) {
         </div>
         <div class="link-grid">
           ${g.items.map(f => `
-            <div class="link-card">
+            <div class="link-card" onclick="goDetail('${esc(f.id)}')" style="cursor:pointer;">
               <div class="lc-head">
                 <span class="lc-ic">${typeIconMap[f.type_tag]||'🔗'}</span>
                 <span class="lc-tag">${escapeHtml(f.type_tag||'')}</span>
               </div>
               <div class="lc-title">${escapeHtml(f.title.replace(`${g.campus||''} ${g.gwan||''}`, '').trim() || f.title)}</div>
-              <div class="lc-preview" title="안내문구와 복사 시 이 문장이 링크와 함께 복사됩니다">💬 "${escapeHtml(typeMsgMap[f.type_tag]||'아래 링크를 확인해주세요.')}"</div>
-              <div class="lc-actions">
-                <button type="button" class="lc-btn primary" onclick="copyLinkById('${esc(f.id)}')">📋 링크 복사</button>
-                <button type="button" class="lc-btn" onclick="copyMessageById('${esc(f.id)}')">💬 안내문구와 복사</button>
-                <button type="button" class="lc-btn icon" onclick="window.open('${esc(f.drive_url)}','_blank','noopener')" title="열어보기">👁</button>
+              <div class="lc-preview" title="클릭하면 상세 페이지에서 안내문구 전문을 볼 수 있습니다">💬 "${escapeHtml(typeMsgMap[f.type_tag]||'아래 링크를 확인해주세요.')}"</div>
+              <div class="lc-actions" onclick="event.stopPropagation()">
+                <button type="button" class="lc-btn primary" onclick="event.stopPropagation(); copyLinkById('${esc(f.id)}')">📋 링크 복사</button>
+                <button type="button" class="lc-btn" onclick="event.stopPropagation(); copyMessageById('${esc(f.id)}')">💬 안내문구와 복사</button>
+                <button type="button" class="lc-btn icon" onclick="event.stopPropagation(); window.open('${esc(f.drive_url)}','_blank','noopener')" title="열어보기">👁</button>
               </div>
             </div>
           `).join('')}
@@ -1770,12 +1770,55 @@ function renderDetail() {
     // 행정 매뉴얼: markdown 필드 있으면 원문 렌더링
     body = `<div class="md-body">${renderMarkdown(item.content.markdown)}</div>`;
   } else if (item.category === 'files') {
-    // 행정자료 파일: 분류·설명·파일종류·수정일 + 「구글 드라이브 열기」 버튼
     const raw = (DATA.files || []).find(f => f.id === item.id);
     const desc = raw && raw.description ? raw.description : (typeof item.content === 'string' ? item.content : '');
+    const driveUrl = raw && raw.drive_url ? raw.drive_url : (item.drive_url || '');
+
+    // 「자주 쓰는 링크」 전용 상세: 안내문구 예시 + 복사 2버튼 + 열기
+    if (raw && raw.type_tag) {
+      const intro = LINK_MESSAGE_TEMPLATES[raw.type_tag] || '아래 링크를 확인해주세요.';
+      const fullMessage = `${intro}\n${driveUrl}`;
+      body = `
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+          <span style="padding:4px 12px; background:var(--orange); color:white; border-radius:999px; font-size:12px; font-weight:600;">${escapeHtml(raw.campus||'')} ${escapeHtml(raw.gwan||'')}</span>
+          <span style="padding:4px 12px; background:var(--purple-soft); color:var(--purple); border-radius:999px; font-size:12px; font-weight:600;">${escapeHtml(raw.type_tag)}</span>
+        </div>
+        ${desc ? `<p style="color:var(--muted); margin-bottom:20px;">${escapeHtml(desc)}</p>` : ''}
+
+        <div style="margin-top:8px;">
+          <div style="font-size:13px; font-weight:700; color:var(--ink); margin-bottom:8px;">📨 학부모 전달 안내문구 예시</div>
+          <div style="padding:16px 18px; background:#FAFBFC; border-left:3px solid var(--purple); border-radius:10px; line-height:1.7;">
+            <div style="color:var(--ink); font-size:14px; margin-bottom:10px;">${escapeHtml(intro)}</div>
+            <div style="color:var(--purple); font-weight:600; font-size:13px; word-break:break-all;">${escapeHtml(driveUrl)}</div>
+          </div>
+          <div style="font-size:11px; color:var(--muted); margin-top:6px;">
+            * 「안내문구와 복사」를 누르면 위 2줄이 그대로 복사됩니다. 「링크 복사」는 URL만 복사합니다.
+          </div>
+        </div>
+
+        <div style="margin-top:24px; display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" onclick="copyLinkById('${escapeAttr(raw.id)}')"
+             style="padding:12px 24px; background:var(--orange); color:white; border:none; border-radius:10px; cursor:pointer; font-size:14px; font-weight:600; font-family:inherit;">
+            📋 링크만 복사
+          </button>
+          <button type="button" onclick="copyMessageById('${escapeAttr(raw.id)}')"
+             style="padding:12px 24px; background:var(--purple); color:white; border:none; border-radius:10px; cursor:pointer; font-size:14px; font-weight:600; font-family:inherit;">
+            💬 안내문구와 함께 복사
+          </button>
+          <a href="${escapeAttr(driveUrl)}" target="_blank" rel="noopener"
+             style="padding:12px 20px; background:white; color:var(--ink); border:1px solid var(--line); border-radius:10px; text-decoration:none; font-size:14px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+            👁 미리 열어보기
+          </a>
+        </div>
+
+        <div style="margin-top:16px; padding:10px 14px; background:#FEF3E6; border-radius:8px; font-size:12px; color:#92400E;">
+          💡 통화 중 안내: 「안내문구와 복사」 → 카톡/문자 바로 붙여넣기 → 전송
+        </div>
+      `;
+    } else {
+    // 행정자료 파일: 분류·설명·파일종류·수정일 + 「구글 드라이브 열기」 버튼
     const fileType = raw && raw.file_type ? raw.file_type : '';
     const updated = raw && raw.updated ? raw.updated : '';
-    const driveUrl = raw && raw.drive_url ? raw.drive_url : (item.drive_url || '');
     const rows = [];
     if (item.subcategory) rows.push(`<dt>분류</dt><dd>${escapeHtml(item.subcategory)}</dd>`);
     if (desc) rows.push(`<dt>설명</dt><dd>${escapeHtml(desc)}</dd>`);
@@ -1801,6 +1844,7 @@ function renderDetail() {
         ⚠️ 드라이브 링크가 등록되지 않았습니다. 「행정자료」 시트에서 링크 입력이 필요합니다.
       </div>
     `);
+    }
   } else {
     // 기존 contacts / tuition
     const rows = Object.entries(item.content).filter(([k,v]) => v).map(([k,v]) => `
